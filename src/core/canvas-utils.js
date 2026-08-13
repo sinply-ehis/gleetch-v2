@@ -1,0 +1,29 @@
+export function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
+// Preserves the source image's own aspect ratio (scaled to fit within
+// maxDim on the longer edge for processing speed) instead of force-cropping
+// to a fixed square — this is what the canvas dimensions should actually be
+// set to before drawing, not passed as a target size to crop into.
+export function computeAdaptiveSize(img, maxDim = 1024) {
+  const w = img.naturalWidth || img.videoWidth || 1;
+  const h = img.naturalHeight || img.videoHeight || 1;
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  return { W: Math.max(1, Math.round(w * scale)), H: Math.max(1, Math.round(h * scale)) };
+}
+
+// Draws an image into a W×H canvas using cover-fit (fills frame, crops overflow)
+export function drawImageCover(ctx, img, W, H) {
+  ctx.clearRect(0, 0, W, H);
+  const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+  const sw = img.naturalWidth * scale;
+  const sh = img.naturalHeight * scale;
+  ctx.drawImage(img, (W - sw) / 2, (H - sh) / 2, sw, sh);
+}

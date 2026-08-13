@@ -1,0 +1,290 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#14142A;}
+.root{font-family:'Share Tech Mono','Courier New',monospace;background:#14142A;color:#E0E0FF;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+.header{padding:18px 22px 14px;border-bottom:1px solid #2A2A50;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;}
+.logo{font-family:'VT323',monospace;font-size:48px;letter-spacing:5px;color:#FF2D6B;line-height:1;cursor:default;animation:idle 10s steps(1) infinite;}
+.logo.burst{animation:burst .5s steps(1);}
+@keyframes idle{0%,88%,100%{text-shadow:none;transform:none;}89%{text-shadow:3px 0 #FF2D6B,-3px 0 #00E5FF;}90%{text-shadow:-2px 0 #FF2D6B,2px 0 #00E5FF;transform:translateX(2px);}91%{text-shadow:3px 0 #00E5FF;transform:translateX(-1px);}92%{text-shadow:none;}}
+@keyframes burst{0%{text-shadow:4px 0 #FF2D6B,-4px 0 #00E5FF;transform:translateX(-2px);}20%{text-shadow:-4px 0 #FF2D6B,4px 0 #00E5FF;transform:translateX(3px);}40%{text-shadow:2px 0 #FFB800;transform:skewX(-4deg);}100%{text-shadow:none;transform:none;}}
+.tagline{font-size:9px;color:#3A3A70;letter-spacing:2px;padding-bottom:4px;}
+.tabs{display:flex;gap:0;margin-left:auto;align-self:stretch;align-items:stretch;}
+.tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;color:#4A4A80;padding:0 18px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:2px;transition:all .15s;}
+.tab-btn:hover{color:#E0E0FF;}
+.tab-btn.on{color:#FF2D6B;border-bottom-color:#FF2D6B;}
+.body{display:flex;flex:1;min-height:0;overflow:hidden;position:relative;}
+.sidebar{width:var(--sidebar-width,280px);flex-shrink:0;background:#18183A;border-right:1px solid #252550;padding:16px;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:0;scrollbar-width:auto;scrollbar-color:#00E5FF #1E1E45;}
+/* The sidebar as a whole must scroll when its content (upload zone,
+   presets, active chain, intensity, seed, action buttons) exceeds the
+   viewport — previously only .algo-scroll scrolled and everything else
+   got clipped with no way to reach it. Same visible high-contrast
+   scrollbar treatment as .algo-scroll below, for the same reason. */
+.sidebar::-webkit-scrollbar{width:9px;}
+.sidebar::-webkit-scrollbar-track{background:#1E1E45;border-radius:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:#00E5FF;border-radius:4px;}
+.sidebar::-webkit-scrollbar-thumb:hover{background:#6EF3FF;}
+/* Direct children (other than .algo-scroll, which keeps its own flex
+   sizing) never shrink below their natural height, so a short window
+   can't squash the controls — it scrolls instead. */
+.sidebar > *:not(.algo-scroll){flex-shrink:0;}
+.sidebar-resizer{position:absolute;top:0;bottom:0;left:var(--sidebar-width,280px);width:10px;margin-left:-5px;cursor:col-resize;z-index:5;touch-action:none;background:transparent;border:none;padding:0;}
+.sidebar-resizer::after{content:'';position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:transparent;transition:background .15s;}
+.sidebar-resizer:hover::after,.sidebar-resizer:active::after,.sidebar-resizer:focus-visible::after{background:#00E5FF;}
+.sidebar::-webkit-scrollbar{width:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:#2A2A55;}
+/* Previously: 4px thumb in #2A2A55 against a #18183A sidebar — a ~6-unit
+   RGB delta per channel, close to imperceptible, especially with no
+   Firefox styling at all (scrollbar-width/color were never set, so
+   Firefox fell back to its default thin bar, unstyled). Reported as
+   "can't scroll" on Windows — this is almost certainly why: nothing
+   about the region visibly signals it scrolls. */
+.algo-scroll{flex:1 1 auto;min-height:80px;max-height:46vh;overflow-y:auto;overflow-x:hidden;margin:4px 0;padding-right:6px;position:relative;scrollbar-width:auto;scrollbar-color:#00E5FF #1E1E45;}
+.algo-scroll::-webkit-scrollbar{width:9px;}
+.algo-scroll::-webkit-scrollbar-track{background:#1E1E45;border-radius:4px;}
+.algo-scroll::-webkit-scrollbar-thumb{background:#00E5FF;border-radius:4px;}
+.algo-scroll::-webkit-scrollbar-thumb:hover{background:#6EF3FF;}
+/* Always-on fade at the bottom edge — a second, non-scrollbar-dependent
+   signal that there's more content below. Deliberately not tracking
+   scroll position (no JS/ResizeObserver) to stay simple; it doesn't
+   disappear once fully scrolled, which is an acceptable tradeoff for a
+   purely decorative cue. */
+.algo-scroll::after{content:'';position:sticky;display:block;bottom:0;left:0;right:0;height:14px;margin-top:-14px;background:linear-gradient(transparent,#18183A);pointer-events:none;}
+.main{flex:1;padding:20px;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:16px;align-items:flex-start;min-width:0;}
+.sec{margin-bottom:14px;}
+.lbl{display:block;font-size:9px;letter-spacing:2px;color:#4A4A80;margin-bottom:7px;}
+.div{height:1px;background:#222248;margin:12px 0;}
+.mode-row{display:flex;gap:4px;margin-bottom:12px;}
+.mode-btn{flex:1;background:transparent;border:1px solid #252550;color:#4A4A80;padding:8px 4px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:2px;transition:all .12s;}
+.mode-btn.on{border-color:#FF2D6B;color:#FF2D6B;background:rgba(255,45,107,0.07);}
+.upload-zone{border:2px dashed #2A2A55;padding:20px 12px;text-align:center;cursor:pointer;transition:all .15s;background:rgba(255,45,107,0.02);margin-bottom:10px;border-radius:2px;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:#FF2D6B;background:rgba(255,45,107,0.06);}
+.upload-zone.has-content{border-color:#00E5FF;background:rgba(0,229,255,0.04);}
+.uz-icon{font-size:24px;color:#3A3A70;margin-bottom:5px;}
+.uz-text{font-size:10px;letter-spacing:2px;color:#B0B0E0;}
+.uz-sub{font-size:8px;color:#2E2E58;letter-spacing:1px;margin-top:3px;}
+.gen-box{background:rgba(255,45,107,0.04);border:1px solid #2A2A55;padding:14px 12px;text-align:center;margin-bottom:10px;}
+.gen-icon{font-size:20px;color:#FF2D6B;margin-bottom:4px;}
+.gen-text{font-size:9px;color:#8080B0;letter-spacing:1px;}
+.preset-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+.preset-btn{background:transparent;border:1px solid #222248;color:#4A4A80;padding:5px 8px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;transition:all .12s;flex:1;min-width:60px;}
+.preset-btn.on{border-color:#FFB800;color:#FFB800;background:rgba(255,184,0,0.07);}
+.preset-btn:hover{border-color:#5A5A90;color:#C0C0E0;}
+.adv-toggle{background:transparent;border:none;color:#4A4A80;font-family:inherit;font-size:9px;letter-spacing:2px;cursor:pointer;padding:0;margin-bottom:10px;transition:color .12s;}
+.adv-toggle:hover{color:#C0C0E0;}
+.algo-btn{display:block;width:100%;background:transparent;border:1px solid #1E1E40;color:#4A4A80;padding:7px 9px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:1px;text-align:left;margin-bottom:3px;transition:all .12s;}
+.algo-btn:hover{border-color:rgba(255,45,107,0.35);color:#C0C0E0;}
+.algo-btn.on{border-color:#FF2D6B;color:#FF2D6B;background:rgba(255,45,107,0.06);}
+.adot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#2A2A55;margin-right:6px;vertical-align:middle;}
+.algo-btn.on .adot{background:#FF2D6B;}
+.ahint{display:block;font-size:8px;color:#2A2A55;margin-top:2px;letter-spacing:0;}
+.algo-btn.on .ahint{color:#5A2A3A;}
+.ch-row{display:flex;gap:3px;margin-bottom:12px;}
+.ch-btn{flex:1;background:transparent;border:1px solid #1E1E40;color:#4A4A80;padding:5px 2px;cursor:pointer;font-family:inherit;font-size:9px;text-align:center;transition:all .12s;}
+.ch-btn.on{border-color:#FFB800;color:#FFB800;background:rgba(255,184,0,0.07);}
+.slider{-webkit-appearance:none;width:100%;height:2px;background:#222248;outline:none;cursor:pointer;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:#FF2D6B;border:2px solid #14142A;cursor:pointer;}
+.seed-row{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
+.seed-lbl{font-size:9px;color:#4A4A80;letter-spacing:2px;}
+.seed-val{font-size:16px;color:#FFB800;letter-spacing:3px;}
+.reroll-btn{display:block;width:100%;background:#FF2D6B;border:none;color:#fff;padding:10px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:3px;margin-bottom:6px;transition:opacity .12s;}
+.reroll-btn:hover{opacity:.85;}
+.reroll-btn:disabled{opacity:.4;cursor:wait;}
+.action-row{display:flex;gap:5px;}
+.act-btn{flex:1;background:transparent;border:1px solid #252550;color:#5A5A90;padding:8px 4px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;transition:all .12s;text-align:center;}
+.act-btn:hover{border-color:#00E5FF;color:#00E5FF;}
+
+/* ── New: active effect chain reordering ─────────────────────────── */
+/* Bounded + independently scrollable, same reasoning and same visible-
+   scrollbar treatment as .algo-scroll above: with 11 param-aware effects
+   now in the registry (was 1 before this round), a chain with several
+   of them active can grow tall enough to squeeze algo-scroll's flex
+   space on desktop. Capping this stops that regardless of how many
+   param rows stack up. */
+.chain-list{margin-bottom:10px;max-height:220px;overflow-y:auto;overflow-x:hidden;padding-right:6px;position:relative;scrollbar-width:auto;scrollbar-color:#00E5FF #1E1E45;}
+.chain-list::-webkit-scrollbar{width:9px;}
+.chain-list::-webkit-scrollbar-track{background:#1E1E45;border-radius:4px;}
+.chain-list::-webkit-scrollbar-thumb{background:#00E5FF;border-radius:4px;}
+.chain-list::-webkit-scrollbar-thumb:hover{background:#6EF3FF;}
+.chain-item{display:flex;align-items:center;gap:5px;padding:4px 0;border-bottom:1px solid #1E1E40;}
+.chain-order{font-size:9px;color:#3A3A70;width:14px;flex-shrink:0;}
+.chain-name{flex:1;font-size:9px;color:#9A9AC0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chain-btn{background:transparent;border:1px solid #1E1E40;color:#4A4A80;width:20px;height:20px;flex-shrink:0;cursor:pointer;font-size:9px;line-height:1;padding:0;transition:all .12s;}
+.chain-btn:hover:not(:disabled){border-color:#00E5FF;color:#00E5FF;}
+.chain-btn:disabled{opacity:.3;cursor:default;}
+.chain-item-wrap{border-bottom:1px solid #1E1E40;}
+.chain-item-wrap .chain-item{border-bottom:none;}
+.chain-params{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 8px 19px;}
+.chain-param{display:flex;align-items:center;gap:5px;font-size:9px;color:#6A6A9A;}
+.chain-param select{background:#1E1E45;color:#C0C0E0;border:1px solid #2A2A55;font-family:inherit;font-size:9px;padding:2px 4px;cursor:pointer;}
+.chain-param select:hover{border-color:#00E5FF;}
+.chain-param input[type=color]{width:20px;height:20px;padding:0;border:1px solid #2A2A55;background:transparent;cursor:pointer;}
+.chain-param input[type=range]{-webkit-appearance:none;width:64px;height:2px;background:#2A2A55;outline:none;cursor:pointer;}
+.chain-param input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:#00E5FF;border:1px solid #0A0A1C;cursor:pointer;}
+.chain-param input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#00E5FF;border:1px solid #0A0A1C;cursor:pointer;}
+.chain-param input[type=range]::-moz-range-track{background:#2A2A55;height:2px;}
+.chain-param-val{font-variant-numeric:tabular-nums;min-width:22px;color:#00E5FF;}
+.act-btn.primary{background:#FF2D6B;border-color:#FF2D6B;color:#fff;}
+.act-btn.primary:hover{opacity:.85;}
+.canvas-wrap{position:relative;display:inline-block;border:1px solid #252550;width:100%;max-width:1100px;}
+.out-canvas{display:block;width:100%;height:auto;max-height:calc(100vh - 220px);}
+.video-output{width:100%;max-width:1100px;height:auto;max-height:calc(100vh - 260px);border:1px solid #252550;display:block;}
+.crt{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,0.06) 0,rgba(0,0,0,0.06) 1px,transparent 1px,transparent 3px);}
+.busy-ov{position:absolute;inset:0;background:rgba(20,20,42,0.8);display:flex;align-items:center;justify-content:center;}
+.busy-lbl{font-family:'VT323',monospace;font-size:26px;color:#FF2D6B;letter-spacing:4px;}
+.canvas-meta{font-size:9px;color:#252550;letter-spacing:1px;margin-top:6px;display:flex;gap:14px;}
+.canvas-hint{font-size:8px;color:#1E1E40;letter-spacing:1px;margin-top:3px;}
+/* Same size/spacing idea as .canvas-hint, but that one is calibrated
+   near-invisible against .main's background — wrong contrast entirely
+   against .sidebar's lighter #18183A. This is for hint text that's
+   meant to actually be read inside the sidebar. */
+.sidebar-hint{font-size:8px;color:#4A4A80;letter-spacing:.5px;line-height:1.5;margin:2px 0 4px;}
+.text-input,.text-output{width:100%;background:#0E0E22;border:1px solid #252550;color:#E0E0FF;padding:12px;font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.6;resize:vertical;outline:none;min-height:200px;tab-size:2;}
+.text-input:focus{border-color:#FF2D6B;}
+.text-output{color:#00E5FF;border-color:#1A1A40;background:#0A0A1C;min-height:200px;max-height:480px;overflow-y:auto;cursor:text;white-space:pre-wrap;word-break:break-all;user-select:text;}
+.text-label{font-size:9px;letter-spacing:2px;color:#4A4A80;margin-bottom:6px;display:block;}
+.text-area-wrap{flex:1;display:flex;flex-direction:column;min-width:0;}
+.text-areas{display:flex;gap:16px;width:100%;max-width:900px;}
+.audio-drop{border:2px dashed #2A2A55;padding:30px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:12px;}
+.audio-drop:hover,.audio-drop.drag-over{border-color:#FF2D6B;background:rgba(255,45,107,0.04);}
+.audio-drop.loaded{border-color:#00E5FF;}
+.waveform-canvas{display:block;width:100%;max-width:512px;height:80px;border:1px solid #1A1A3A;background:#0A0A1C;}
+.audio-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+.play-btn{background:#FF2D6B;border:none;color:#fff;padding:9px 20px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:2px;transition:opacity .12s;}
+.play-btn:hover{opacity:.85;}
+.play-btn:disabled{opacity:.4;cursor:not-allowed;}
+.play-btn.playing{background:#00E5FF;color:#0A0A1C;}
+.audio-info{font-size:9px;color:#4A4A80;letter-spacing:1px;}
+.video-controls{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.stat-badge{font-size:9px;color:#4A4A80;background:#1A1A3A;padding:3px 8px;letter-spacing:1px;}
+
+/* ── New: category grouping within AlgoPanel ─────────────────── */
+.algo-cat-lbl{font-size:8px;letter-spacing:2px;color:#3A3A70;margin:10px 0 4px;text-transform:uppercase;}
+.algo-cat-lbl:first-child{margin-top:0;}
+
+/* ── New: category-coded button treatment — chrome hints at what each
+   category of effect actually does. Event-driven (hover only), never
+   ambient, so controls stay stable and legible at rest. ────────────── */
+@keyframes corrupt-hover{
+  0%,84%,100%{text-shadow:none;transform:none;}
+  85%{text-shadow:2px 0 #FF2D6B,-2px 0 #00E5FF;transform:translateX(1px);}
+  87%{text-shadow:-2px 0 #FF2D6B,2px 0 #00E5FF;transform:translateX(-1px);}
+  89%{text-shadow:none;transform:none;}
+}
+.algo-btn.cat-corruption:hover{animation:corrupt-hover 1.6s steps(1) infinite;}
+
+.algo-btn.cat-clean-tone:hover{box-shadow:inset 0 0 0 1px rgba(0,229,255,0.3);border-color:#00E5FF;transition:all .25s ease;}
+
+.algo-btn.cat-distortion:hover{transform:skewX(-3deg);transition:transform .15s ease;}
+
+@keyframes stylize-hue{0%{border-color:#FF2D6B;}33%{border-color:#FFB800;}66%{border-color:#00E5FF;}100%{border-color:#FF2D6B;}}
+.algo-btn.cat-stylize:hover{animation:stylize-hue 1.6s linear infinite;}
+
+.algo-btn.cat-overlay:hover{text-shadow:2px 2px 0 rgba(255,45,107,0.35),-2px -2px 0 rgba(0,229,255,0.35);transition:text-shadow .2s ease;}
+
+.algo-btn.cat-typography{font-family:'Share Tech Mono','Courier New',monospace;}
+.algo-btn.cat-typography:hover{border-color:#FFB800;transition:border-color .2s ease;}
+
+/* ── New: shuffle button (randomizes effect selection + intensity) ─ */
+.shuffle-btn{display:block;width:100%;background:transparent;border:1px solid #FFB800;color:#FFB800;padding:9px;cursor:pointer;font-family:inherit;font-size:10px;letter-spacing:2px;margin-bottom:6px;transition:all .12s;}
+.shuffle-btn:hover{background:rgba(255,184,0,0.08);}
+.shuffle-btn:disabled{opacity:.4;cursor:wait;}
+
+/* ── New: video export button + progress state ────────────────── */
+.export-btn{background:#00E5FF;border:none;color:#0A0A1C;padding:9px 20px;cursor:pointer;font-family:inherit;font-size:11px;letter-spacing:2px;transition:opacity .12s;}
+.export-btn:hover{opacity:.85;}
+.export-btn:disabled{opacity:.4;cursor:wait;}
+
+/* ── New: rare idle glitch pulse on canvas frames — same restrained
+   pattern as the logo's idle animation (mostly still, brief flicker),
+   applied to the decorative "screen" layer only, never to controls. ── */
+@keyframes idle-frame{
+  0%,92%,100%{box-shadow:none;}
+  93%{box-shadow:2px 0 0 rgba(255,45,107,0.4),-2px 0 0 rgba(0,229,255,0.4);}
+  95%{box-shadow:-2px 0 0 rgba(255,45,107,0.4),2px 0 0 rgba(0,229,255,0.4);}
+  97%{box-shadow:none;}
+}
+.canvas-wrap,.video-output{animation:idle-frame 14s steps(1) infinite;}
+
+/* ── New: WEB tab — demo preview card, import textarea, export row ── */
+.web-preview{width:100%;min-height:280px;display:flex;align-items:center;justify-content:center;background:#0A0A1C;border:1px solid #252550;padding:40px;box-sizing:border-box;}
+.web-demo-card{background:#1A1A3A;border:1px solid #2A2A55;border-radius:8px;padding:28px 32px;max-width:420px;text-align:left;position:relative;}
+.web-demo-badge{position:absolute;top:-10px;right:14px;background:#FF2D6B;color:#fff;font-size:9px;padding:2px 8px;letter-spacing:1px;border-radius:3px;}
+.web-demo-card h2{margin:0 0 10px;font-family:'VT323',monospace;font-size:28px;color:#E0E0FF;}
+.web-demo-card p{margin:0 0 16px;font-size:13px;line-height:1.5;color:#9A9AC0;font-family:'Share Tech Mono',monospace;}
+.web-demo-btn{background:#00E5FF;border:none;color:#0A0A1C;padding:9px 18px;font-family:inherit;font-size:11px;letter-spacing:1px;cursor:pointer;border-radius:4px;}
+.web-export-row{display:flex;gap:6px;flex-wrap:wrap;}
+.web-import{width:100%;min-height:80px;background:#0A0A1C;border:1px solid #252550;color:#00E5FF;font-family:'Share Tech Mono',monospace;font-size:11px;padding:8px;resize:vertical;box-sizing:border-box;}
+
+/* ── New: cross-browser slider thumb (Firefox mobile needs its own rule —
+   only -webkit- existed before, which Firefox on Android ignores) ────── */
+.slider::-moz-range-thumb{width:13px;height:13px;background:#FF2D6B;border:2px solid #14142A;cursor:pointer;border-radius:50%;}
+.slider::-moz-range-track{background:#222248;height:2px;}
+
+/* ── Help panel: a modal, not a 6th tab, since it's reference content to
+   check mid-task rather than a workspace with its own recipe/state. ── */
+.help-btn{margin-left:auto;background:transparent;border:1px solid #2A2A55;color:#8A8AC0;width:30px;height:30px;border-radius:50%;cursor:pointer;font-family:inherit;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;}
+.help-btn:hover{border-color:#00E5FF;color:#00E5FF;}
+.help-backdrop{position:fixed;inset:0;background:rgba(10,10,28,.78);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.help-panel{background:#18183A;border:1px solid #2A2A55;border-radius:8px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;}
+.help-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #252550;flex-shrink:0;}
+.help-title{font-family:'Share Tech Mono','Courier New',monospace;font-size:13px;letter-spacing:3px;color:#E0E0FF;}
+.help-close{background:transparent;border:none;color:#5A5A90;font-size:15px;cursor:pointer;padding:4px 8px;}
+.help-close:hover{color:#FF2D6B;}
+.help-nav{display:flex;gap:4px;padding:12px 20px 0;flex-wrap:wrap;flex-shrink:0;}
+/* Same fix as .algo-scroll: thick high-contrast scrollbar + Firefox
+   support, so this new scrollable region doesn't ship with the exact
+   "can't tell it scrolls" bug that was just found and fixed there. */
+.help-body{flex:1 1 auto;min-height:80px;overflow-y:auto;overflow-x:hidden;padding:16px 14px 20px 20px;margin:4px 6px 4px 0;scrollbar-width:auto;scrollbar-color:#00E5FF #1E1E45;}
+.help-body::-webkit-scrollbar{width:9px;}
+.help-body::-webkit-scrollbar-track{background:#1E1E45;border-radius:4px;}
+.help-body::-webkit-scrollbar-thumb{background:#00E5FF;border-radius:4px;}
+.help-list{margin:0;padding-left:18px;color:#C0C0E0;font-size:13px;line-height:1.7;}
+.help-list li{margin-bottom:10px;}
+
+/* ── Mobile: stacked layout instead of side-by-side, bigger touch targets.
+   DOM order already puts upload/controls before the preview in every tab
+   (sidebar is first in markup), so a plain column stack means the upload
+   button is immediately visible on load — matches an upload-first workflow
+   without needing explicit reordering. ─────────────────────────────────── */
+@media (max-width: 860px) {
+  .root{height:auto;min-height:100vh;min-height:100dvh;overflow-y:auto;overflow-x:hidden;}
+  .header{padding:14px 16px 10px;flex-wrap:wrap;}
+  .logo{font-size:32px;letter-spacing:3px;}
+  .tagline{display:none;}
+  .tabs{width:100%;margin-left:0;margin-top:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab-btn{padding:11px 14px;font-size:10px;white-space:nowrap;flex-shrink:0;}
+
+  .body{flex-direction:column;overflow-y:visible;overflow-x:hidden;}
+  .sidebar{width:100%;border-right:none;border-bottom:1px solid #252550;overflow:visible;padding:14px;}
+  .sidebar-resizer{display:none;}
+  .algo-scroll{max-height:320px;}
+  .main{width:100%;overflow:visible;padding:14px;align-items:stretch;}
+
+  .canvas-wrap{max-width:100%;max-height:60vh;margin:0 auto;}
+  .out-canvas,.video-output{max-width:100%;max-height:60vh;margin:0 auto;}
+  .text-areas{flex-direction:column;max-width:100%;gap:12px;}
+  .waveform-canvas{max-width:100%;}
+
+  /* Touch targets: 44px is the standard comfortable minimum tap height */
+  .act-btn,.play-btn,.export-btn,.reroll-btn,.shuffle-btn,.mode-btn{min-height:44px;}
+  .algo-btn{padding:11px 10px;min-height:44px;}
+  .chain-btn{width:44px;height:44px;font-size:14px;}
+  .preset-btn{min-height:40px;padding:8px;}
+  .ch-btn{min-height:38px;}
+  .slider::-webkit-slider-thumb{width:20px;height:20px;}
+  .slider::-moz-range-thumb{width:20px;height:20px;}
+  .slider{height:4px;}
+
+  .action-row,.video-controls,.audio-controls,.web-export-row{flex-wrap:wrap;}
+  .web-preview{padding:20px 14px;min-height:200px;}
+  .web-demo-card{padding:20px 18px;max-width:100%;}
+  .help-backdrop{padding:0;align-items:flex-end;}
+  .help-panel{max-width:100%;width:100%;max-height:90vh;border-radius:12px 12px 0 0;}
+}
+
+@media (max-width: 420px) {
+  .logo{font-size:26px;}
+  .tab-btn{padding:10px 11px;font-size:9px;}
+  .preset-btn{min-width:0;}
+}
