@@ -1,13 +1,12 @@
 # GLEETCH v3 — General Special-Effects Library
 
-[![CI](https://github.com/REPLACE_ME/gleetch/actions/workflows/ci.yml/badge.svg)](https://github.com/REPLACE_ME/gleetch/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+[![CI](https://github.com/sinply-ehis/Gleetch/actions/workflows/ci.yml/badge.svg)](https://github.com/sinply-ehis/Gleetch/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg](./LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg](./CONTRIBUTING.md)
 
-> Badges above point at `REPLACE_ME/gleetch` — swap that for your actual
-> `owner/repo` once this is pushed to GitHub (same placeholder is in
-> `package.json`'s `repository`/`bugs`/`homepage` fields — search-and-
-> replace `REPLACE_ME` in both files).
+> Badges above already point at the real repository (`sinply-ehis/Gleetch`).
+> `package.json`'s `repository`/`bugs`/`homepage` fields carry the same
+> value. If the repo ever moves, search-and-replace `sinply-ehis/Gleetch`.
 
 Started as a corruption/glitch tool. Now a general effects library across
 image, text, audio, video, and CSS/web — corruption is one category among
