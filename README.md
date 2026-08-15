@@ -239,11 +239,8 @@ never ambient, so the controls stay stable and legible at rest):
 
 Do whatever. It is 𝔊𝔏𝔈𝔈𝔗ℭℌ.
 
-*(that's real output from `fontShuffle('GLEETCH', 0.9, prng(26))` — Mathematical
-Fraktur, not hand-typed — because a glitch tool's license line should
-probably be glitched by the glitch tool itself.)*
 
-MIT — see [LICENSE](./LICENSE).
+MIT
 
 ## More
 
