@@ -1,7 +1,7 @@
 # GLEETCH v3 — General Special-Effects Library
 
 [![CI](https://github.com/sinply-ehis/gleetch-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/sinply-ehis/gleetch-v2/actions/workflows/ci.yml)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg](./CONTRIBUTING.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
 > Landing site: <https://sinply-ehis.github.io/Gleetch/> — this repo is
 > the app itself.
