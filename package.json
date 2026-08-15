@@ -8,12 +8,12 @@
   "author": "Ehis",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sinply-ehis/Gleetch.git"
+    "url": "git+https://github.com/sinply-ehis/gleetch-v2.git"
   },
   "bugs": {
-    "url": "https://github.com/sinply-ehis/Gleetch/issues"
+    "url": "https://github.com/sinply-ehis/gleetch-v2/issues"
   },
-  "homepage": "https://github.com/sinply-ehis/Gleetch#readme",
+  "homepage": "https://sinply-ehis.github.io/gleetch-v2/",
   "keywords": [
     "glitch-art",
     "effects",

@@ -1,12 +1,10 @@
 # GLEETCH v3 — General Special-Effects Library
 
-[![CI](https://github.com/sinply-ehis/Gleetch/actions/workflows/ci.yml/badge.svg)](https://github.com/sinply-ehis/Gleetch/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg](./LICENSE)
+[![CI](https://github.com/sinply-ehis/gleetch-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/sinply-ehis/gleetch-v2/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg](./CONTRIBUTING.md)
 
-> Badges above already point at the real repository (`sinply-ehis/Gleetch`).
-> `package.json`'s `repository`/`bugs`/`homepage` fields carry the same
-> value. If the repo ever moves, search-and-replace `sinply-ehis/Gleetch`.
+> Landing site: <https://sinply-ehis.github.io/Gleetch/> — this repo is
+> the app itself.
 
 Started as a corruption/glitch tool. Now a general effects library across
 image, text, audio, video, and CSS/web — corruption is one category among
