@@ -5,6 +5,7 @@ import { DISTORTION_EFFECTS } from './image/distortion.js';
 import { STYLIZE_EFFECTS } from './image/stylize.js';
 import { OVERLAY_EFFECTS } from './image/overlay.js';
 import { UNCANNY_EFFECTS } from './image/uncanny.js';
+import { PRESENCE_EFFECTS } from './image/presence.js';
 import { PARTICLE_EFFECTS } from './image/particles.js';
 import { GEOMETRIC_EFFECTS } from './image/geometric.js';
 import { TEXT_EFFECTS } from './text/corruption.js';
@@ -26,6 +27,7 @@ export const ALL_EFFECTS = [
   ...STYLIZE_EFFECTS,
   ...OVERLAY_EFFECTS,
   ...UNCANNY_EFFECTS,
+  ...PRESENCE_EFFECTS,
   ...PARTICLE_EFFECTS,
   ...GEOMETRIC_EFFECTS,
   ...TEXT_EFFECTS,
@@ -124,16 +126,147 @@ function isValidParamValue(schema, v) {
   return false;
 }
 
-// Picks a random subset of effect ids for a media type (used by the shuffle button).
-export function randomEffectSelection(mediaType, rng, minCount = 2, maxCount = 4) {
-  const pool = getEffectsFor(mediaType).map((e) => e.id);
-  const count = Math.min(pool.length, minCount + Math.floor(rng() * (maxCount - minCount + 1)));
-  const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+// Curated chains that are known to look right together — the shuffle
+// returns one of these ~30% of the time so a reroll feels designed, and
+// composes fresh chains the rest of the time so it still surprises.
+// Video signatures deliberately exclude realtimeSafe:false effects:
+// continuous playback skips those by default, and a signature that
+// silently drops half its chain isn't a signature.
+const SIGNATURE_CHAINS = {
+  image: [
+    ['dataMosh', 'pixelSort', 'duotone'],
+    ['waveWarp', 'scanline', 'hueRotate', 'bitFlip'],
+    ['chanShift', 'quantize', 'lensAberration', 'stripeBurn'],
+    ['void', 'pixelEcho', 'hueRotate'],
+    ['levels', 'hueRotate', 'matrixColor', 'pixelEcho'],
+    ['crystallize', 'edgeSketch', 'duotone'],
+    ['sigil', 'displacementMap', 'invertZones'],
+    ['stripeBurn', 'pixelate', 'duotone'],
+    ['edgeSketch', 'pixelate', 'quantize', 'hueRotate'],
+    ['wraith', 'pixelSort', 'chanShift'],
+    ['anomalousSpasm', 'modularMask', 'scanline'],
+    ['gaussianBlur', 'displacementMap', 'duotone'],
+    ['oilPaint', 'displacementMap', 'gaussianBlur'],
+    ['voronoi', 'quantize', 'duotone'],
+  ],
+  video: [
+    ['dataMosh', 'pixelSort', 'duotone'],
+    ['scanline', 'waveWarp', 'hueRotate'],
+    ['chanShift', 'bitFlip', 'lensAberration'],
+    ['stripeBurn', 'pixelEcho', 'matrixColor'],
+    ['invertZones', 'quantize', 'duotone'],
+    ['edgeSketch', 'lineDistortion', 'levels'],
+    ['pixelate', 'dataMosh', 'hueRotate'],
+    ['lensWarp', 'scanline', 'bitFlip'],
+  ],
+  text: [
+    ['zalgo', 'stutter', 'caseChaos'],
+    ['repeatBlocks', 'scramble', 'noiseInject'],
+    ['fontShuffle', 'positionDistortion', 'caseWave'],
+    ['segReverse', 'lineChaos', 'marginDrift'],
+    ['whitespaceBreathe', 'homoglyph', 'caseChaos'],
+  ],
+  audio: [
+    ['bitCrush', 'tapeWobble', 'dropout'],
+    ['stutter', 'noiseInject', 'echo'],
+    ['granularScatter', 'outburst', 'feedback'],
+    ['chunkRepeat', 'sampleCrush', 'bitCrush'],
+    ['softCompress', 'subtleVibrato', 'tapeWobble'],
+  ],
+  web: [
+    ['cssNoiseStatic', 'cssGlitchSlice', 'cssRgbSplit'],
+    ['cssScanlines', 'cssVhsWobble', 'cssHueCycle'],
+    ['cssDatamoshJump', 'cssInvertPulse', 'neonGlow'],
+    ['filmGrain', 'cssParticleDrift', 'cssRgbSplit'],
+  ],
+};
+
+// Composed chains lean on the glitch-identity categories; everything
+// else stays fair game but slightly quieter.
+const CATEGORY_WEIGHTS = { corruption: 1.6, distortion: 1.6, stylize: 1.3, 'color-tone': 1.1 };
+const DEFAULT_CATEGORY_WEIGHT = 1;
+
+function weightedCategoryPick(rng, categories) {
+  const weights = categories.map((c) => CATEGORY_WEIGHTS[c] ?? DEFAULT_CATEGORY_WEIGHT);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = rng() * total;
+  for (let i = 0; i < categories.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return categories[i];
   }
-  return shuffled.slice(0, count);
+  return categories[categories.length - 1];
+}
+
+function pickFromCategory(rng, idsByCategory, category, taken) {
+  const candidates = (idsByCategory.get(category) || []).filter((id) => !taken.has(id));
+  if (!candidates.length) return null;
+  return candidates[Math.floor(rng() * candidates.length)];
+}
+
+// Picks a dynamic chain of effect ids for a media type (used by the shuffle
+// button). Two modes: ~30% of rerolls return a curated SIGNATURE_CHAINS
+// combo (occasionally grown with one complementary effect), the rest are
+// composed fresh — an anchor category chosen with glitch-identity weights,
+// then each step prefers a category different from the last so effects
+// complement instead of cancelling. Never repeats an id within a chain.
+//   options.exclude         — ids to avoid (pass the current chain so a
+//                             reroll can never return the same chain twice)
+//   options.signatureChance — 0..1, default 0.3
+export function randomEffectSelection(mediaType, rng, options = {}) {
+  const { minCount = 2, maxCount = 4, exclude = [], signatureChance = 0.3 } = options;
+  const pool = getEffectsFor(mediaType).filter((e) => !exclude.includes(e.id));
+  if (!pool.length) return [];
+  const taken = new Set(exclude);
+
+  if (rng() < signatureChance) {
+    const signatures = (SIGNATURE_CHAINS[mediaType] || []).filter((chain) =>
+      chain.every((id) => pool.some((e) => e.id === id)));
+    if (signatures.length) {
+      const chain = [...signatures[Math.floor(rng() * signatures.length)]];
+      chain.forEach((id) => taken.add(id));
+      if (rng() < 0.25 && chain.length < maxCount) {
+        const growPool = mediaType === 'video' ? pool.filter((e) => e.realtimeSafe !== false) : pool;
+        const rest = growPool.filter((e) => !taken.has(e.id));
+        if (rest.length) {
+          chain.push(rest[Math.floor(rng() * rest.length)].id);
+        }
+      }
+      return chain;
+    }
+  }
+
+  const byCategory = new Map();
+  for (const e of pool) {
+    if (!byCategory.has(e.category)) byCategory.set(e.category, []);
+    byCategory.get(e.category).push(e.id);
+  }
+  const categories = Array.from(byCategory.keys());
+  const count = Math.min(pool.length, minCount + Math.floor(rng() * (maxCount - minCount + 1)));
+  const chain = [];
+  let lastCategory = null;
+  while (chain.length < count) {
+    let category;
+    if (!lastCategory || rng() < 0.15) {
+      category = weightedCategoryPick(rng, categories);
+    } else {
+      const others = categories.filter((c) => c !== lastCategory);
+      category = others.length ? weightedCategoryPick(rng, others) : lastCategory;
+    }
+    const id = pickFromCategory(rng, byCategory, category, taken);
+    if (id === null) {
+      const rest = pool.filter((e) => !taken.has(e.id));
+      if (!rest.length) break;
+      const e = rest[Math.floor(rng() * rest.length)];
+      chain.push(e.id);
+      taken.add(e.id);
+      lastCategory = e.category;
+    } else {
+      chain.push(id);
+      taken.add(id);
+      lastCategory = category;
+    }
+  }
+  return chain;
 }
 
 // Video-specific chain runner. Most effects (pixel sort, datamosh, wave warp,
@@ -145,11 +278,15 @@ export function randomEffectSelection(mediaType, rng, minCount = 2, maxCount = 4
 // direction) — those are flagged `stableAcrossFrames` in their registry
 // entry and get a seed tied to the clip only, so the choice holds for the
 // whole video instead of flickering between random picks every frame.
-export function applyVideoEffectChain(data, effectIds, ctx, clipSeed, frameSeed, effectParams = {}) {
+// Heavy effects (oilPaint, voronoi, overlay) flagged realtimeSafe:false can
+// be throttled via shouldProcessHeavy for quality tiers. Default FALSE for
+// backward compatibility — continuous playback skips heavy effects.
+export function applyVideoEffectChain(data, effectIds, ctx, clipSeed, frameSeed, effectParams = {}, shouldProcessHeavy = false) {
   let result = data;
   for (const id of effectIds) {
     const effect = getEffectById(id, 'video');
-    if (!effect || effect.realtimeSafe === false) continue;
+    if (!effect) continue;
+    if (effect.realtimeSafe === false && !shouldProcessHeavy) continue;
     const rng = prng(effect.stableAcrossFrames ? clipSeed : frameSeed);
     const params = effect.params ? sanitizeParams(effect, effectParams[id]) : undefined;
     result = effect.needsChannel

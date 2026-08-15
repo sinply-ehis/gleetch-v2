@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { randomSeed } from './core/constants.js';
 import { loadImageFile } from './core/canvas-utils.js';
 import { getRecipeFromURL, clearRecipeFromURL } from './core/recipe.js';
+import { QualityProvider, useQuality } from './core/quality.jsx';
 import VisualTab from './components/VisualTab.jsx';
 import TextTab from './components/TextTab.jsx';
 import AudioTab from './components/AudioTab.jsx';
@@ -18,7 +19,8 @@ const TABS = [
   ['web', '◈ WEB'],
 ];
 
-export default function App() {
+function AppInner() {
+  const { cycleQuality, current, isBatterySaver } = useQuality();
   const [incomingRecipe] = useState(() => getRecipeFromURL());
   const [tab, setTab] = useState(incomingRecipe?.t ?? 'visual');
   const [seed, setSeed] = useState(incomingRecipe?.s ?? randomSeed());
@@ -26,9 +28,6 @@ export default function App() {
   const [burst, setBurst] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Visual-tab upload state lives here (not inside VisualTab) so the global
-  // clipboard-paste handler below can drop an image in regardless of which
-  // tab is currently focused, then jump to the visual tab.
   const [vMode, setVMode] = useState('generate');
   const [uploadedImg, setUploadedImg] = useState(null);
 
@@ -72,7 +71,7 @@ export default function App() {
 
   return (
     <div className="root">
-      <header className="header">
+<header className="header">
         <div>
           <div className={`logo ${burst ? 'burst' : ''}`}>GLEETCH</div>
           <div className="tagline">a general special-effects library · images · text · audio · video · css · 120 patterns · 65+ effects</div>
@@ -82,7 +81,12 @@ export default function App() {
             <button key={id} className={`tab-btn ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
-        <button className="help-btn" onClick={() => setShowHelp(true)} aria-label="Help">?</button>
+        <div className="header-right">
+          <button className="quality-btn" onClick={cycleQuality} title={`Quality: ${current.name} (click to cycle) — ${isBatterySaver ? 'BATTERY SAVER ACTIVE' : 'auto'}`}>
+            ⚡ {current.name}
+          </button>
+          <button className="help-btn" onClick={() => setShowHelp(true)} aria-label="Help">?</button>
+        </div>
       </header>
 
       {showHelp && <HelpPanel initialSection={tab} onClose={() => setShowHelp(false)} />}
@@ -98,5 +102,13 @@ export default function App() {
         {tab === 'web' && <WebTab seed={seed} onReroll={reroll} initialRecipe={incomingRecipe?.t === 'web' ? incomingRecipe : null} />}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <QualityProvider>
+      <AppInner />
+    </QualityProvider>
   );
 }

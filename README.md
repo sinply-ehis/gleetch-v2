@@ -46,20 +46,19 @@ deploy story is unchanged.
 
 | Tab | Input | Effects | Categories |
 |-----|-------|---------|-----------|
-| VISUAL | Image upload or 120 hidden generated patterns | 27 | corruption, color-tone, distortion, stylize, overlay |
+| VISUAL | Image upload or 120 hidden generated patterns | 37 | corruption, color-tone, distortion, stylize, overlay |
 | TEXT | Paste code, prose, poetry, source files | 15 | corruption, clean-tone, typography |
-| AUDIO | Upload mp3/wav/ogg/flac/m4a, exports WAV | 16 | corruption, clean-tone |
-| VIDEO | Upload mp4/webm/mov, real-time preview + real video export, audio track processed independently | 27 | corruption, color-tone, distortion, stylize, overlay |
-| WEB | Generates real CSS, previewed live, exports as file/snippet/console/bookmarklet | 8 | corruption, color-tone, distortion, stylize |
+| AUDIO | Upload mp3/wav/ogg/flac/m4a, exports WAV | 17 | corruption, clean-tone |
+| VIDEO | Upload mp4/webm/mov, real-time preview + real video export, audio track processed independently | 37 | corruption, color-tone, distortion, stylize, overlay |
+| WEB | Generates real CSS, previewed live, exports as file/snippet/console/bookmarklet | 14 | corruption, color-tone, distortion, stylize |
 
 `oilPaint` and the 3 `overlay*` effects are tagged `realtimeSafe: false` —
 selectable in the video effect panel, but skipped during live preview and
 continuous export (they're too slow to re-render every frame at 30fps).
 They only actually apply via **🎨 FULL QUALITY FRAME** — a single still
-capture, which has no real-time deadline to miss. `phantomFace` is the
-exception among the visually-similar "overlay" effects: it's pure
-per-pixel math with no pattern lookup, so it's cheap enough for real-time
-video and runs live like everything else.
+capture, which has no real-time deadline to miss. With the quality-tier
+system, heavy effects are throttled during live playback (every Nth frame)
+or disabled entirely on the low tier — see `src/core/quality.jsx`.
 
 `clean-tone` on the text tab mirrors `color-tone` on images: systematic and
 positional instead of chaotic. `MARGIN DRIFT` is the direct text analog of
@@ -80,7 +79,8 @@ what makes pixel sort, datamosh, and channel drift feel alive as the clip
 plays. But a few effects use randomness to make a one-time *style* choice
 rather than a per-frame *glitch* decision: `duotone`'s hue pair, `hueRotate`'s
 direction, `lensWarp`'s bulge-vs-pinch, `lineDistortion`'s wave shape,
-`phantomFace`'s position/size/color. Those
+`matrixColor`'s palette, and the presence family's geometry (VOID's rim
+lobes, SIGIL's rotation/spoke count, WRAITH's smear strength). Those
 are flagged `stableAcrossFrames` in the registry and get a seed tied to the
 clip instead of the frame — so the choice holds for the whole video instead
 of flickering between random picks 30 times a second. Re-rolling the seed
@@ -107,7 +107,10 @@ src/
                       overlay* are tagged `realtimeSafe: false` — selectable
                       for video but only applied via full-quality frame
                       capture, not continuous playback), uncanny.js
-                      (phantomFace — pure pixel math, real-time video-safe)
+                      (pareidolia displacement family: MODULAR MASK,
+                      ANOMALOUS SPASM, SCREAM VORTEX), presence.js
+                      (VOID / SIGIL / WRAITH — eerie per-pixel overlays,
+                      real-time video-safe, the PHANTOM FACE slot)
     text/          — corruption.js, clean-tone.js, typography.js
                       (FONT SHUFFLE), position.js (POSITION DISTORTION)
     audio/         — corruption.js, clean-tone.js (WARM LOWPASS, SOFT

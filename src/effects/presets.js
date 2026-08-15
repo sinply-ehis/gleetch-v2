@@ -5,7 +5,7 @@ export const IMAGE_PRESETS = {
   MELT: { algos: ['waveWarp', 'dataMosh', 'pixelEcho', 'chanShift'], intensity: 0.68 },
   DREAMY: { algos: ['gaussianBlur', 'duotone', 'lensAberration'], intensity: 0.5 },
   PRINT: { algos: ['halftoneFilter', 'levels'], intensity: 0.6 },
-  HAUNTED: { algos: ['phantomFace', 'scanline', 'invertZones'], intensity: 0.55 },
+  HAUNTED: { algos: ['anomalousSpasm', 'scanline', 'invertZones'], intensity: 0.55 },
 };
 
 export const TEXT_PRESETS = {

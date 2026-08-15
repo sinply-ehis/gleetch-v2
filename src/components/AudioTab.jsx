@@ -11,16 +11,16 @@ import ShuffleButton from './ShuffleButton.jsx';
 import ScrambleText from './ScrambleText.jsx';
 import ActiveChainList from './ActiveChainList.jsx';
 import CopyRecipeButton from './CopyRecipeButton.jsx';
+import { useQuality } from '../core/quality.jsx';
 
 const AUDIO_EFFECTS = getEffectsFor('audio');
 
-function drawWaveform(canvas, audioBuffer) {
+function drawWaveform(canvas, audioBuffer, step = 1) {
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   ctx.fillStyle = '#0A0A1C';
   ctx.fillRect(0, 0, w, h);
   const ch = audioBuffer.getChannelData(0);
-  const step = Math.ceil(ch.length / w);
   ctx.strokeStyle = '#FF2D6B';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -34,6 +34,8 @@ function drawWaveform(canvas, audioBuffer) {
 }
 
 export default function AudioTab({ seed, onReroll, initialRecipe }) {
+  const { current: quality } = useQuality();
+  
   const [audioBuffer, setAudioBuffer] = useState(null);
   const [duration, setDuration] = useState(null);
   const [algos, setAlgos] = useState(initialRecipe?.a ?? ['bitCrush', 'stutter']);
@@ -55,10 +57,10 @@ export default function AudioTab({ seed, onReroll, initialRecipe }) {
       const decoded = await audioCtxRef.current.decodeAudioData(await file.arrayBuffer());
       setAudioBuffer(decoded);
       setDuration(decoded.duration);
-      setTimeout(() => waveCanvasRef.current && drawWaveform(waveCanvasRef.current, decoded), 50);
+      setTimeout(() => waveCanvasRef.current && drawWaveform(waveCanvasRef.current, decoded, quality.waveformSteps), 50);
     } catch (e) { console.error('Audio load error:', e); }
     setBusy(false);
-  }, []);
+  }, [quality.waveformSteps]);
 
   const runAudio = useCallback(async () => {
     if (!audioBuffer || !audioCtxRef.current) return;
@@ -85,11 +87,6 @@ export default function AudioTab({ seed, onReroll, initialRecipe }) {
     setPlaying(false);
   }, []);
 
-  // Switching tabs unmounts AudioTab entirely (only one tab renders at a
-  // time), so without this: (a) any currently-playing glitched audio keeps
-  // playing in the background with no way to stop it, and (b) the
-  // AudioContext is never released — browsers cap concurrent AudioContexts
-  // (~6 in Chrome), so repeated visits to this tab would eventually throw.
   useEffect(() => () => {
     if (audioSrcRef.current) { try { audioSrcRef.current.stop(); } catch { /* already stopped */ } }
     if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') audioCtxRef.current.close().catch(() => {});
@@ -113,7 +110,7 @@ export default function AudioTab({ seed, onReroll, initialRecipe }) {
   const shuffle = () => {
     const rng = prng(Date.now() % 999999);
     setPreset(null);
-    setAlgos(randomEffectSelection('audio', rng));
+    setAlgos(randomEffectSelection('audio', rng, { exclude: algos }));
     setIntensity(0.2 + rng() * 0.65);
   };
 
@@ -151,7 +148,7 @@ export default function AudioTab({ seed, onReroll, initialRecipe }) {
           <button className="act-btn" onClick={downloadAudio} disabled={!audioBuffer}>↓ WAV</button>
         </div>
         {!audioBuffer && <div className="audio-info">UPLOAD AUDIO TO BEGIN · all glitch happens in-browser · exports as WAV</div>}
-        <div className="audio-info" style={{ marginTop: 8 }}>{algos.length} EFFECT{algos.length !== 1 ? 'S' : ''} ACTIVE · SEED #{seedStr}</div>
+        <div className="audio-info" style={{ marginTop: 8 }}>{algos.length} EFFECT{algos.length !== 1 ? 'S' : ''} ACTIVE · SEED #{seedStr} · quality: {quality.name}</div>
       </main>
     </>
   );

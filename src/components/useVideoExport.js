@@ -5,7 +5,7 @@ import { processAudioBuffer } from '../effects/audio/process-buffer.js';
 import { applyEffectChain } from '../effects/registry.js';
 import { exportVideo, prepareAudioTrack } from '../effects/video/export.js';
 
-export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTrack, seed }) {
+export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTrack, seed, maxDim = 720 }) {
   const [exporting, setExporting] = useState(false);
 
   const captureFrame = useCallback(() => {
@@ -27,8 +27,9 @@ export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTr
   const captureFullQualityFrame = useCallback((algos, intensity, effectParams) => {
     const vid = videoRef.current, wc = workRef.current;
     if (!vid || !wc || vid.readyState < 2) return;
-    const VW = vid.videoWidth || 512, VH = vid.videoHeight || 512;
-    const wctx = wc.getContext('2d');
+    const VW = Math.min(vid.videoWidth || 512, maxDim);
+    const VH = Math.min(vid.videoHeight || 512, maxDim);
+    const wctx = wc.getContext('2d', { willReadFrequently: true });
     wctx.drawImage(vid, 0, 0, VW, VH);
     let buf = wctx.getImageData(0, 0, VW, VH).data;
     const frameSeed = seed + ((vid.currentTime * 1000) | 0);
@@ -43,7 +44,7 @@ export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTr
     a.href = tmp.toDataURL();
     a.download = `gleetch-frame-fullquality-${String(seed).padStart(6, '0')}.png`;
     a.click();
-  }, [videoRef, workRef, seed]);
+  }, [videoRef, workRef, seed, maxDim]);
 
   const runExport = useCallback(async (withAudio, setPlaying) => {
     const vid = videoRef.current, oc = outRef.current;

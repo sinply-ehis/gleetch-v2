@@ -61,7 +61,7 @@ export default function WebTab({ seed, onReroll, initialRecipe }) {
   const shuffle = () => {
     const rng = prng(Date.now() % 999999);
     setPreset(null);
-    setAlgos(randomEffectSelection('web', rng));
+    setAlgos(randomEffectSelection('web', rng, { exclude: algos }));
     setIntensity(0.3 + rng() * 0.6);
   };
 

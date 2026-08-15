@@ -12,11 +12,20 @@ import ShuffleButton from './ShuffleButton.jsx';
 import ScrambleText from './ScrambleText.jsx';
 import ActiveChainList from './ActiveChainList.jsx';
 import CopyRecipeButton from './CopyRecipeButton.jsx';
+import { useQuality } from '../core/quality.jsx';
 
 const IMAGE_EFFECTS = getEffectsFor('image');
 
 export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploadedImg, setUploadedImg, initialRecipe }) {
-  const [algos, setAlgos] = useState(initialRecipe?.a ?? ['pixelSort', 'chanShift']);
+  const { current: quality } = useQuality();
+  
+  // The tab always carries a random effect chain: a fresh random pick on
+  // mount (unless a shared recipe says otherwise), and an instant random
+  // refill if the user removes every effect.
+  const [algos, setAlgos] = useState(() => {
+    if (initialRecipe?.a?.length) return initialRecipe.a;
+    return randomEffectSelection('image', prng(Date.now() % 999999));
+  });
   const [intensity, setIntensity] = useState(initialRecipe?.i ?? 0.55);
   const [channel, setChannel] = useState(initialRecipe?.c ?? 'brightness');
   const [effectParams, setEffectParams] = useState(initialRecipe?.p ?? {});
@@ -26,26 +35,45 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
   const workRef = useRef(null);
   const outRef = useRef(null);
 
-  // computeAdaptiveSize is pure and cheap, so this is derived directly
-  // during render rather than synced into separate state via an effect —
-  // no need for the extra render-then-effect-then-rerender round trip.
-  // Wrapped in useMemo so the object reference stays stable across renders
-  // when mode/uploadedImg haven't actually changed — without it, a fresh
-  // {W,H} object every render would make run()'s useCallback see a
-  // "changed" dependency every time even when the values are identical.
+  // Reused output ImageData (getImageData itself always allocates fresh)
+  const outImageDataRef = useRef(null);
+
+  // Quality-adaptive dimensions
+  const maxDim = quality.maxCanvasDim;
   const dims = useMemo(
-    () => (mode === 'upload' && uploadedImg ? computeAdaptiveSize(uploadedImg) : { W: SIZE, H: SIZE }),
-    [mode, uploadedImg]
+    () => {
+      if (mode === 'upload' && uploadedImg) {
+        const { W, H } = computeAdaptiveSize(uploadedImg);
+        return { W: Math.min(W, maxDim), H: Math.min(H, maxDim) };
+      }
+      return { W: Math.min(SIZE, maxDim), H: Math.min(SIZE, maxDim) };
+    },
+    [mode, uploadedImg, maxDim]
   );
+
+  // Debounced intensity/effectParams for sliders
+  const [intensityDebounced, setIntensityDebounced] = useState(intensity);
+  const [effectParamsDebounced, setEffectParamsDebounced] = useState(effectParams);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIntensityDebounced(intensity), 80);
+    return () => clearTimeout(t);
+  }, [intensity]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setEffectParamsDebounced(effectParams), 80);
+    return () => clearTimeout(t);
+  }, [effectParams]);
 
   const run = useCallback(() => {
     const wc = workRef.current, oc = outRef.current;
     if (!wc || !oc) return;
     const { W, H } = dims;
     setBusy(true);
-    setTimeout(() => {
-      const ctx = wc.getContext('2d');
+    const render = () => {
+      const ctx = wc.getContext('2d', { willReadFrequently: true });
       const rng = prng(seed);
+
       if (mode === 'upload' && uploadedImg) {
         ctx.clearRect(0, 0, W, H);
         ctx.drawImage(uploadedImg, 0, 0, W, H);
@@ -54,25 +82,46 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
         try { pattern.fn(ctx, W, H, rng); }
         catch { ctx.fillStyle = '#FF2D6B'; ctx.fillRect(0, 0, W, H); }
       }
+
+      // getImageData always returns a fresh ImageData — the reuse win is
+      // the work canvas + the output ImageData, not this read.
       let buf = ctx.getImageData(0, 0, W, H).data;
-      buf = applyEffectChain(buf, algos, { mediaType: 'image', W, H, intensity, channel }, prng(seed + 999), effectParams);
-      const octx = oc.getContext('2d');
-      const od = octx.createImageData(W, H);
-      od.data.set(buf);
-      octx.putImageData(od, 0, 0);
-      setBusy(false);
+
+      buf = applyEffectChain(buf, algos, { mediaType: 'image', W, H, intensity: intensityDebounced, channel }, prng(seed + 999), effectParamsDebounced);
+
+      // Reuse output ImageData
+      let outImgData = outImageDataRef.current;
+      if (!outImgData || outImgData.width !== W || outImgData.height !== H) {
+        outImgData = oc.getContext('2d').createImageData(W, H);
+        outImageDataRef.current = outImgData;
+      }
+      outImgData.data.set(buf);
+      oc.getContext('2d').putImageData(outImgData, 0, 0);
+    };
+    setTimeout(() => {
+      try { render(); }
+      catch (err) { console.error('VisualTab render failed:', err); }
+      finally { setBusy(false); }
     }, 10);
-  }, [seed, mode, uploadedImg, algos, intensity, channel, dims, effectParams]);
+  }, [seed, mode, uploadedImg, algos, intensityDebounced, channel, dims, effectParamsDebounced]);
 
   useEffect(() => { run(); }, [run]);
 
+  // Removing the last effect never leaves an empty chain: roll a fresh
+  // random one at the removal site instead of refilling in an effect.
+  const rollFreshChain = () => randomEffectSelection('image', prng(Date.now() % 999999));
+  const withoutOrRefill = (chain, id) => {
+    const next = chain.filter((a) => a !== id);
+    return next.length ? next : rollFreshChain();
+  };
+
   const applyPreset = (k) => { const p = IMAGE_PRESETS[k]; setAlgos(p.algos); setIntensity(p.intensity); setPreset(k); };
-  const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? p.filter((a) => a !== id) : [...p, id])); };
+  const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? withoutOrRefill(p, id) : [...p, id])); };
 
   const shuffle = () => {
     const rng = prng(Date.now() % 999999);
     setPreset(null);
-    setAlgos(randomEffectSelection('image', rng));
+    setAlgos(randomEffectSelection('image', rng, { exclude: algos }));
     setIntensity(0.3 + rng() * 0.6);
   };
 
@@ -138,7 +187,7 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
             )}
           </div>
         )}
-        <ActiveChainList algos={algos} mediaType="image" onReorder={setAlgos} onRemove={(id) => setAlgos((p) => p.filter((a) => a !== id))} effectParams={effectParams} onParamsChange={setEffectParams} />
+        <ActiveChainList algos={algos} mediaType="image" onReorder={setAlgos} onRemove={(id) => setAlgos((p) => withoutOrRefill(p, id))} effectParams={effectParams} onParamsChange={setEffectParams} />
 
         <div className="div" />
         <div className="sec">
@@ -168,7 +217,7 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
           <span>ITER {String(iter).padStart(4, '0')}</span>
           <span>{algos.length} EFFECT{algos.length !== 1 ? 'S' : ''}</span>
         </div>
-        <div className="canvas-hint">SPACE to re-roll · paste or drag image · shuffle for a new effect combo</div>
+        <div className="canvas-hint">quality: {quality.name} · {dims.W}×{dims.H} · {quality.enableHeavyEffects ? 'all effects' : 'heavy effects disabled'}</div>
       </main>
     </>
   );

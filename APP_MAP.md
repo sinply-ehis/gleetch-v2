@@ -217,7 +217,7 @@ None specific — browser MediaRecorder/Web Audio APIs, no framework needed.
 - AudioContext is closed on unmount (repeated tab visits used to exhaust
   the browser's AudioContext limit — see CHANGELOG.md)
 - `stableAcrossFrames` effects (`duotone`, `hueRotate`, `lensWarp`,
-  `lineDistortion`, `phantomFace`) hold steady within a clip
+  `lineDistortion`, `void`, `sigil`, `wraith`) hold steady within a clip
 - `realtimeSafe: false` effects (`oilPaint`, `overlay*`) never run during
   live playback or continuous export, only full-quality capture
 - Object URLs (video blob, exported file blobs) are revoked, not leaked

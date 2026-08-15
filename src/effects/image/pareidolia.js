@@ -32,7 +32,6 @@ const COLOR_OPTIONS = [
 // Geometric layout of each face: how the virtual features (two eyes + mouth)
 // are placed and whether the field mirrors around the horizontal center.
 export const FACE_SETTINGS = {
-  phantomFace: { scale: 0.45, eyeDist: 0.25, mouthY: 0.3, mirror: true },
   modularMask: { scale: 0.75, eyeDist: 0.35, mouthY: 0.45, mirror: true },
   anomalousSpasm: { scale: 0.3, eyeDist: 0.15, mouthY: 0.2, mirror: false },
   screamVortex: { scale: 1.1, eyeDist: 0.1, mouthY: 0.55, mirror: false },
@@ -41,15 +40,14 @@ export const FACE_SETTINGS = {
 // Default param values per face, so each effect opens with its own look
 // instead of a one-size-fits-all preset.
 export const FACE_DEFAULTS = {
-  phantomFace: { algo: 'sin_r', power: 1.8, chaos: 40, dispersion: 12, colorMode: 'none' },
   modularMask: { algo: 'fractal_sin', power: 3.2, chaos: 90, dispersion: 25, colorMode: 'cyberTint' },
   anomalousSpasm: { algo: 'tangent_spike', power: 4.0, chaos: 180, dispersion: 40, colorMode: 'solarize' },
   screamVortex: { algo: 'polar_spiral', power: 2.5, chaos: 120, dispersion: 15, colorMode: 'thermal' },
 };
 
 // Builds the params schema for one face effect (the only part the registry
-// needs). The engine defaults below mirror phantomFace so direct calls
-// without params still behave sanely.
+// needs). The engine defaults below mirror the pareidolia family so direct
+// calls without params still behave sanely.
 export function faceParams(name) {
   const d = FACE_DEFAULTS[name];
   return [

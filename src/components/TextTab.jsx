@@ -30,7 +30,7 @@ export default function TextTab({ seed, onReroll, initialRecipe }) {
   const shuffle = () => {
     const rng = prng(Date.now() % 999999);
     setPreset(null);
-    setAlgos(randomEffectSelection('text', rng));
+    setAlgos(randomEffectSelection('text', rng, { exclude: algos }));
     setIntensity(0.15 + rng() * 0.7);
   };
 

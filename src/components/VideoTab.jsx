@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { prng } from '../core/rng.js';
 import { getEffectsFor, applyVideoEffectChain, randomEffectSelection } from '../effects/registry.js';
 import { IMAGE_PRESETS } from '../effects/presets.js';
@@ -12,15 +12,14 @@ import ShuffleButton from './ShuffleButton.jsx';
 import ScrambleText from './ScrambleText.jsx';
 import ActiveChainList from './ActiveChainList.jsx';
 import CopyRecipeButton from './CopyRecipeButton.jsx';
+import { useQuality } from '../core/quality.jsx';
 
-// Only effects tagged for 'video' — includes oilPaint/overlay now (tagged
-// realtimeSafe:false), which are selectable here but only actually applied
-// via the FULL QUALITY FRAME capture, not continuous playback/export. See
-// applyVideoEffectChain in effects/registry.js for the filtering logic.
 const VIDEO_EFFECTS = getEffectsFor('video');
 const AUDIO_TRACK_EFFECTS = getEffectsFor('audio');
 
 export default function VideoTab({ seed, onReroll, initialRecipe }) {
+  const { current: quality } = useQuality();
+  
   const [videoFile, setVideoFile] = useState(null);
   const [algos, setAlgos] = useState(initialRecipe?.a ?? ['pixelSort', 'chanShift']);
   const [intensity, setIntensity] = useState(initialRecipe?.i ?? 0.55);
@@ -38,48 +37,105 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
   const renderFrameRef = useRef(null);
   const audioTrack = useVideoAudioTrack();
 
-  // Refs mirror the latest state so the requestAnimationFrame loop never
-  // reads stale closures (this bit the monolith before — see the video RAF
-  // stale-closure fix in the build history).
+  // Reused output ImageData (getImageData itself always allocates fresh)
+  const outImageDataRef = useRef(null);
+
+  // Refs for stale-closure-free RAF loop
   const algosRef = useRef(algos);
   const intensityRef = useRef(intensity);
   const seedRef = useRef(seed);
   const effectParamsRef = useRef(effectParams);
+  const qualityRef = useRef(quality);
+  const heavyFrameRef = useRef(0);
   useEffect(() => { algosRef.current = algos; }, [algos]);
   useEffect(() => { intensityRef.current = intensity; }, [intensity]);
   useEffect(() => { seedRef.current = seed; }, [seed]);
   useEffect(() => { effectParamsRef.current = effectParams; }, [effectParams]);
+  useEffect(() => { qualityRef.current = quality; }, [quality]);
 
-  // The recursive rAF call goes through renderFrameRef rather than naming
-  // renderFrame directly inside its own body — self-referencing a const by
-  // name inside its own initializer works fine at runtime (the callback
-  // only actually runs after the assignment completes), but static
-  // analysis can't know that, so it reads as "accessed before declared."
-  // A ref sidesteps the question entirely: .current is just a property
-  // read at call time, not a closure-captured binding.
+  // Heavy effect detection
+  const hasHeavyEffect = useMemo(() => 
+    algos.some(id => {
+      const eff = VIDEO_EFFECTS.find(e => e.id === id);
+      return eff?.realtimeSafe === false;
+    }), [algos]);
+
+  // Quality-adaptive settings
+  const maxDim = quality.videoMaxDim;
+  const targetFPS = quality.targetFPS;
+  const frameInterval = 1000 / targetFPS;
+  const heavyThrottle = quality.heavyEffectThrottle;
+
+  // FPS-throttled RAF wrapper. renderFrame itself always renders fully
+  // (capture/export call it directly with no time gate); the loop drops
+  // frames between the quality tier's frameInterval instead, so a 15fps
+  // tier costs a quarter of the CPU.
+  const loopRef = useRef(null);
+  const lastFrameTimeRef = useRef(0);
+  const loop = () => {
+    const vid = videoRef.current;
+    if (!vid || vid.paused) return;
+    const now = performance.now();
+    if (now - lastFrameTimeRef.current >= frameInterval) {
+      lastFrameTimeRef.current = now;
+      renderFrameRef.current();
+    } else {
+      animRef.current = requestAnimationFrame(loopRef.current);
+    }
+  };
+  useEffect(() => { loopRef.current = loop; });
+
   const renderFrame = useCallback(() => {
     const vid = videoRef.current, oc = outRef.current, wc = workRef.current;
     if (!vid || !oc || !wc || vid.readyState < 2) return;
-    const VW = vid.videoWidth || 512, VH = vid.videoHeight || 512;
+    
+    const VW = Math.min(vid.videoWidth || 512, maxDim);
+    const VH = Math.min(vid.videoHeight || 512, maxDim);
     if (wc.width !== VW) wc.width = VW;
     if (wc.height !== VH) wc.height = VH;
     if (oc.width !== VW) oc.width = VW;
     if (oc.height !== VH) oc.height = VH;
-    const wctx = wc.getContext('2d');
+
+    const wctx = wc.getContext('2d', { willReadFrequently: true });
     wctx.drawImage(vid, 0, 0, VW, VH);
+
+    // getImageData always returns a fresh ImageData — the reuse win is
+    // the work canvas + the output ImageData, not this read.
     let buf = wctx.getImageData(0, 0, VW, VH).data;
+
     const clipSeed = seedRef.current;
     const frameSeed = seedRef.current + ((vid.currentTime * 1000) | 0);
-    buf = applyVideoEffectChain(buf, algosRef.current, { W: VW, H: VH, intensity: intensityRef.current, channel: 'brightness' }, clipSeed, frameSeed, effectParamsRef.current);
-    const octx = oc.getContext('2d');
-    const od = octx.createImageData(VW, VH);
-    od.data.set(buf);
-    octx.putImageData(od, 0, 0);
-    if (!vid.paused) animRef.current = requestAnimationFrame(() => renderFrameRef.current());
-  }, []);
+    
+    // Throttle heavy effects with an integer frame counter — currentTime is
+    // fractional, so (currentTime * fps) % throttle almost never hits 0 and
+    // heavy effects silently vanish mid-playback. Count rendered frames
+    // instead, and honor the quality tier's enableHeavyEffects gate.
+    const throttle = qualityRef.current.heavyEffectThrottle;
+    const shouldProcessHeavy = qualityRef.current.enableHeavyEffects && hasHeavyEffect &&
+      (throttle === 1 || heavyFrameRef.current % throttle === 0);
+    heavyFrameRef.current++;
+
+    buf = applyVideoEffectChain(buf, algosRef.current, { 
+      W: VW, H: VH, intensity: intensityRef.current, channel: 'brightness' 
+    }, clipSeed, frameSeed, effectParamsRef.current, shouldProcessHeavy);
+
+    // Reuse output ImageData
+    let outImgData = outImageDataRef.current;
+    if (!outImgData || outImgData.width !== VW || outImgData.height !== VH) {
+      outImgData = oc.getContext('2d').createImageData(VW, VH);
+      outImageDataRef.current = outImgData;
+    }
+    outImgData.data.set(buf);
+    oc.getContext('2d').putImageData(outImgData, 0, 0);
+
+    if (!vid.paused) animRef.current = requestAnimationFrame(loopRef.current);
+  }, [maxDim, hasHeavyEffect]);
+
   useEffect(() => { renderFrameRef.current = renderFrame; }, [renderFrame]);
 
-  const { exporting, captureFrame, captureFullQualityFrame, runExport, exportAudioOnly } = useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTrack, seed });
+  const { exporting, captureFrame, captureFullQualityFrame, runExport, exportAudioOnly } = useVideoExport({ 
+    videoRef, workRef, outRef, renderFrame, audioTrack, seed, maxDim 
+  });
 
   const captureFullQuality = () => {
     setFqBusy(true);
@@ -93,7 +149,7 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
     if (vid.src) URL.revokeObjectURL(vid.src);
     vid.onloadedmetadata = () => {
       const oc = outRef.current;
-      if (oc) { oc.width = vid.videoWidth; oc.height = vid.videoHeight; }
+      if (oc) { oc.width = Math.min(vid.videoWidth, maxDim); oc.height = Math.min(vid.videoHeight, maxDim); }
     };
     vid.onseeked = () => renderFrame();
     vid.src = URL.createObjectURL(file);
@@ -101,8 +157,8 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
     vid.currentTime = 0;
     setVideoFile(file);
     setPlaying(false);
-    audioTrack.extract(file); // fire-and-forget; fails quietly if no audio track
-  }, [renderFrame, audioTrack]);
+    audioTrack.extract(file);
+  }, [renderFrame, audioTrack, maxDim]);
 
   const toggleVideo = useCallback(() => {
     const vid = videoRef.current;
@@ -110,13 +166,14 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
     if (vid.paused) {
       vid.play().catch(() => {});
       setPlaying(true);
-      animRef.current = requestAnimationFrame(renderFrame);
+      lastFrameTimeRef.current = 0;
+      animRef.current = requestAnimationFrame(loopRef.current);
     } else {
       vid.pause();
       setPlaying(false);
       if (animRef.current) cancelAnimationFrame(animRef.current);
     }
-  }, [videoFile, renderFrame]);
+  }, [videoFile]);
 
   const applyPreset = (k) => { const p = IMAGE_PRESETS[k]; setAlgos(p.algos); setIntensity(p.intensity); setPreset(k); };
   const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? p.filter((a) => a !== id) : [...p, id])); };
@@ -125,7 +182,7 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
   const shuffle = () => {
     const rng = prng(Date.now() % 999999);
     setPreset(null);
-    setAlgos(randomEffectSelection('video', rng));
+    setAlgos(randomEffectSelection('video', rng, { exclude: algos }));
     setIntensity(0.3 + rng() * 0.6);
   };
 
@@ -138,7 +195,7 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
 
   return (
     <>
-      <canvas ref={workRef} width={512} height={512} style={{ display: 'none' }} />
+      <canvas ref={workRef} style={{ display: 'none' }} />
       <video ref={videoRef} style={{ display: 'none' }} playsInline loop
         onEnded={() => { setPlaying(false); if (animRef.current) cancelAnimationFrame(animRef.current); }} />
       <aside className="sidebar">
@@ -186,7 +243,7 @@ export default function VideoTab({ seed, onReroll, initialRecipe }) {
           )}
         </div>
         {!videoFile && <div className="audio-info">UPLOAD VIDEO · frames are glitched in real-time · audio track (if any) processed separately</div>}
-        <div className="canvas-hint">glitch updates live as the video plays · OIL PAINT and OVERLAY effects are too slow for continuous playback, so they only apply via FULL QUALITY FRAME (a single still capture), not live preview or video export</div>
+        <div className="canvas-hint">quality: {quality.name} · max dim: {maxDim}px · {hasHeavyEffect && !quality.enableHeavyEffects ? 'heavy effects disabled' : hasHeavyEffect ? `throttled (1/${heavyThrottle} frames)` : 'all effects real-time'}</div>
       </main>
     </>
   );

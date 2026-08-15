@@ -99,7 +99,7 @@ test('applyEffectChain is deterministic for a given seed', () => {
 });
 
 // Regression test for the video "style pick vs per-frame glitch" fix:
-// duotone/hueRotate/lensWarp/lineDistortion/phantomFace pick a one-time
+// duotone/hueRotate/lensWarp/lineDistortion pick a one-time
 // style choice via rng() (hue, direction, position) and must hold that
 // choice for an entire clip. Without stableAcrossFrames they'd re-roll
 // every frame and flicker between random picks 30 times a second.
@@ -130,7 +130,7 @@ function makeVariedBuf(W, H) {
 
 test('stableAcrossFrames effects hold steady within a clip but vary across clips', () => {
   const ctx = { W: 96, H: 96, intensity: 0.6, channel: 'brightness' };
-  for (const id of ['duotone', 'hueRotate', 'lensWarp', 'lineDistortion', 'phantomFace', 'matrixColor']) {
+  for (const id of ['duotone', 'hueRotate', 'lensWarp', 'lineDistortion', 'matrixColor']) {
     const clipSeed = 555;
     const frame1 = applyVideoEffectChain(makeVariedBuf(96, 96), [id], ctx, clipSeed, clipSeed + 100);
     const frame2 = applyVideoEffectChain(makeVariedBuf(96, 96), [id], ctx, clipSeed, clipSeed + 9000);
@@ -153,5 +153,41 @@ test('randomEffectSelection only returns ids valid for the requested media type'
     const valid = new Set(getEffectsFor(mt).map((e) => e.id));
     const selection = randomEffectSelection(mt, prng(7));
     for (const id of selection) assert.ok(valid.has(id), `${mt} shuffle returned invalid id '${id}'`);
+  }
+});
+
+test('randomEffectSelection never repeats an id within a chain', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    for (const mt of ['image', 'text', 'audio', 'web', 'video']) {
+      const selection = randomEffectSelection(mt, prng(seed), { signatureChance: 0.5 });
+      assert.equal(new Set(selection).size, selection.length, `${mt} seed ${seed} returned duplicates: ${selection.join(',')}`);
+    }
+  }
+});
+
+test('randomEffectSelection respects exclude so rerolls never return the same chain', () => {
+  const a = randomEffectSelection('image', prng(5));
+  for (let seed = 1; seed <= 30; seed++) {
+    const b = randomEffectSelection('image', prng(seed), { exclude: a });
+    assert.notDeepEqual(b, a, `seed ${seed} returned the excluded chain`);
+  }
+  const all = getEffectsFor('image').map((e) => e.id);
+  assert.deepEqual(randomEffectSelection('image', prng(3), { exclude: all }), []);
+});
+
+test('randomEffectSelection signature chains are valid and non-heavy for video', () => {
+  const valid = (mt) => new Set(getEffectsFor(mt).map((e) => e.id));
+  for (let seed = 1; seed <= 200; seed++) {
+    const pick = randomEffectSelection('video', prng(seed), { signatureChance: 1 });
+    const ok = valid('video');
+    for (const id of pick) assert.ok(ok.has(id), `video signature contained unknown id '${id}'`);
+    assert.ok(pick.every((id) => getEffectById(id, 'video').realtimeSafe !== false), `video signature contained a heavy effect`);
+  }
+});
+
+test('randomEffectSelection stays within minCount/maxCount bounds', () => {
+  for (let seed = 1; seed <= 50; seed++) {
+    const selection = randomEffectSelection('image', prng(seed), { minCount: 1, maxCount: 6 });
+    assert.ok(selection.length >= 1 && selection.length <= 6, `chain length ${selection.length} out of bounds`);
   }
 });
