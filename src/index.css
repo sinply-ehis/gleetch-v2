@@ -5,6 +5,8 @@ body{background:#14142A;}
 .header{padding:18px 22px 14px;border-bottom:1px solid #2A2A50;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;}
 .logo{font-family:'VT323',monospace;font-size:48px;letter-spacing:5px;color:#FF2D6B;line-height:1;cursor:default;animation:idle 10s steps(1) infinite;}
 .logo.burst{animation:burst .5s steps(1);}
+.logo-img{animation:idle 10s steps(1) infinite; image-rendering:auto; }
+.logo-img.burst{animation:burst .5s steps(1);}
 @keyframes idle{0%,88%,100%{text-shadow:none;transform:none;}89%{text-shadow:3px 0 #FF2D6B,-3px 0 #00E5FF;}90%{text-shadow:-2px 0 #FF2D6B,2px 0 #00E5FF;transform:translateX(2px);}91%{text-shadow:3px 0 #00E5FF;transform:translateX(-1px);}92%{text-shadow:none;}}
 @keyframes burst{0%{text-shadow:4px 0 #FF2D6B,-4px 0 #00E5FF;transform:translateX(-2px);}20%{text-shadow:-4px 0 #FF2D6B,4px 0 #00E5FF;transform:translateX(3px);}40%{text-shadow:2px 0 #FFB800;transform:skewX(-4deg);}100%{text-shadow:none;transform:none;}}
 .tagline{font-size:9px;color:#3A3A70;letter-spacing:2px;padding-bottom:4px;}
@@ -156,6 +158,19 @@ body{background:#14142A;}
 .audio-info{font-size:9px;color:#4A4A80;letter-spacing:1px;}
 .video-controls{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
 .stat-badge{font-size:9px;color:#4A4A80;background:#1A1A3A;padding:3px 8px;letter-spacing:1px;}
+
+.fmt-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;}
+.fmt-btn{background:transparent;border:1px solid #1E1E40;color:#4A4A80;padding:6px 7px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;transition:all .12s;flex:1 1 auto;min-width:52px;}
+.fmt-btn.on{border-color:#00E5FF;color:#00E5FF;background:rgba(0,229,255,0.07);}
+.fmt-btn:hover{border-color:#2A2A55;color:#C0C0E0;}
+.fmt-custom{display:flex;align-items:center;gap:6px;margin:6px 0;}
+.fmt-input{flex:1;min-width:0;background:#0E0E22;border:1px solid #252550;color:#E0E0FF;padding:6px 8px;font-family:inherit;font-size:12px;outline:none;}
+.fmt-input:focus{border-color:#00E5FF;}
+.fmt-apply{background:transparent;border:1px solid #2A2A55;color:#00E5FF;padding:6px 10px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;}
+.fmt-apply:hover{border-color:#00E5FF;}
+.fmt-fit-row{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.fit-btn{background:transparent;border:1px solid #1E1E40;color:#4A4A80;padding:4px 10px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;flex:1;}
+.fit-btn.on{border-color:#FFB800;color:#FFB800;background:rgba(255,184,0,0.07);}
 
 /* ── New: category grouping within AlgoPanel ─────────────────── */
 .algo-cat-lbl{font-size:8px;letter-spacing:2px;color:#3A3A70;margin:10px 0 4px;text-transform:uppercase;}

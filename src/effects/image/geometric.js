@@ -36,6 +36,8 @@ function nearestCell(x, y, cellSize, cols, rows, centers) {
   return best;
 }
 
+import { lerpBuffer } from '../../core/blend.js';
+
 // Voronoi tessellation — one shared implementation, two very different
 // reads of it depending on the cellColor param: VORONOI fills each cell
 // with its own source-average color (stained-glass/mosaic), CRYSTALLIZE
@@ -71,9 +73,9 @@ export function voronoiCells(buf, W, H, intensity, rng, params) {
     }
   }
 
-  const edgeShade = Math.round(80 - intensity * 80); // soft gray at low intensity -> pure black at high
-  const out = new Uint8ClampedArray(buf.length);
-  out.set(buf);
+  const edgeShade = 0;
+  const full = new Uint8ClampedArray(buf.length);
+  full.set(buf);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const idx = y * W + x, cell = assign[idx];
@@ -89,17 +91,18 @@ export function voronoiCells(buf, W, H, intensity, rng, params) {
       }
       const i = idx * 4;
       if (mode === 'source-average') {
-        if (edge) { out[i] = out[i + 1] = out[i + 2] = edgeShade; }
+        if (edge) { full[i] = full[i + 1] = full[i + 2] = edgeShade; }
         else {
           const n = counts[cell] || 1;
-          out[i] = sumR[cell] / n; out[i + 1] = sumG[cell] / n; out[i + 2] = sumB[cell] / n;
+          full[i] = sumR[cell] / n; full[i + 1] = sumG[cell] / n; full[i + 2] = sumB[cell] / n;
         }
       } else if (edge) {
-        out[i] = out[i + 1] = out[i + 2] = edgeShade;
+        full[i] = full[i + 1] = full[i + 2] = edgeShade;
       }
     }
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 const cellParams = (defaultMode) => [

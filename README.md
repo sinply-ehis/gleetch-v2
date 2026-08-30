@@ -8,10 +8,11 @@
 
 Started as a corruption/glitch tool. Now a general effects library across
 image, text, audio, video, and CSS/web — corruption is one category among
-several (color/tone, distortion, stylization, generative overlay,
-typography). 120 hidden generative patterns, 77 effects total, real
-video-file export with independent audio-track processing, and a
-CSS-generation engine for glitching live websites.
+several (color/tone, distortion, stylization, painterly, print, geometric,
+textile, photographic tone, corruption, craft). 120 hidden generative
+patterns with infinite procedural layering, 111+ image effects (71 image/video),
+77+ total across media, real video-file export with independent audio-track
+processing, and a CSS-generation engine for glitching live websites.
 
 ## Quick Start
 
@@ -44,10 +45,10 @@ deploy story is unchanged.
 
 | Tab | Input | Effects | Categories |
 |-----|-------|---------|-----------|
-| VISUAL | Image upload or 120 hidden generated patterns | 37 | corruption, color-tone, distortion, stylize, overlay |
+| VISUAL | Image upload or 120 patterns × infinite layered procedural | 71 | corruption, color-tone, distortion, stylize, overlay, painterly, print, geometric, textile, photographic, craft |
 | TEXT | Paste code, prose, poetry, source files | 15 | corruption, clean-tone, typography |
 | AUDIO | Upload mp3/wav/ogg/flac/m4a, exports WAV | 17 | corruption, clean-tone |
-| VIDEO | Upload mp4/webm/mov, real-time preview + real video export, audio track processed independently | 37 | corruption, color-tone, distortion, stylize, overlay |
+| VIDEO | Upload mp4/webm/mov, real-time preview + real video export, audio track processed independently | 71 | corruption, color-tone, distortion, stylize, overlay, painterly, print, geometric, textile, photographic, craft |
 | WEB | Generates real CSS, previewed live, exports as file/snippet/console/bookmarklet | 14 | corruption, color-tone, distortion, stylize |
 
 `oilPaint` and the 3 `overlay*` effects are tagged `realtimeSafe: false` —
@@ -89,26 +90,29 @@ specifically that's fixed.
 
 ```
 src/
-  core/            — rng, color/math, canvas (incl. adaptive sizing),
-                      WAV encoder, constants, recipe.js (encode/decode a
-                      tab's {seed, algos, intensity, channel?} into a
-                      shareable URL) — single source of truth
+   core/            — rng, color/math, canvas (incl. adaptive sizing),
+                      blend (intensity lerp), formats (editable ratios),
+                      procedural (infinite layering), WAV encoder, constants,
+                      recipe.js (encode/decode a tab's {seed, algos,
+                      intensity, channel?, format?} into a shareable URL)
   patterns/        — 120 generative patterns across 7 family files
                       (mathematical, geometric, natural, signal, generative,
                       artistic, texture) + a central registry with family
                       tags. New patterns are checked programmatically
                       against the existing 100+ for id collisions before
                       being added — see patterns/registry.js history.
-  effects/
-    image/         — corruption.js, color-tone.js, distortion.js,
-                      stylize.js, overlay.js (pattern-blend; oilPaint and
-                      overlay* are tagged `realtimeSafe: false` — selectable
-                      for video but only applied via full-quality frame
-                      capture, not continuous playback), uncanny.js
-                      (pareidolia displacement family: MODULAR MASK,
-                      ANOMALOUS SPASM, SCREAM VORTEX), presence.js
-                      (VOID / SIGIL / WRAITH — eerie per-pixel overlays,
-                      real-time video-safe, the PHANTOM FACE slot)
+   effects/
+     image/         — corruption.js, corruption2.js (7 new chaos), color-tone.js,
+                       photoTone.js (cyanotype, duotone grade), distortion.js,
+                       stylize.js, painterly.js (watercolor, impasto, ink wash),
+                       print.js (risograph, screen print, screentone, contour),
+                       geometric2.js (low-poly, mandala, leaded glass),
+                       textile.js (cross-stitch, tapestry), craft.js (8: true ascii
+                       as stylized dots, blueprint, woodcut, voronoi mosaic,
+                       topographic, circuit, constellation, thermal), overlay.js
+                       (pattern-blend; oilPaint and overlay* are tagged
+                       `realtimeSafe: false`), uncanny.js (pareidolia family),
+                       presence.js (VOID / SIGIL / WRAITH)
     text/          — corruption.js, clean-tone.js, typography.js
                       (FONT SHUFFLE), position.js (POSITION DISTORTION)
     audio/         — corruption.js, clean-tone.js (WARM LOWPASS, SOFT
@@ -149,6 +153,7 @@ directly and groups/styles by category automatically.
 ## Keyboard & Controls
 
 - `SPACE` — re-roll seed (same effects, new randomness)
+- `←` / `→` — walk seed ±1 for fine procedural exploration (history via re-roll)
 - `🎲 SHUFFLE` (every tab) — randomizes which effects are active + intensity,
   distinct from re-roll
 - `Ctrl/Cmd + V` — paste image directly (jumps to Visual tab from anywhere)

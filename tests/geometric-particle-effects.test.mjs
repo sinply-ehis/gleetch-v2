@@ -46,11 +46,11 @@ test('particleDissolve: with density 0 and no edge color, the image is untouched
 
 test('voronoi (source-average mode): every pixel in the output matches one of a small set of flat cell colors or the edge shade', () => {
   const buf = makeBuf();
-  const out = applyEffectChain(buf, ['voronoi'], { mediaType: 'image', W, H, intensity: 0.4 }, prng(7), { voronoi: { cellSize: 16, cellColor: 'source-average', edgeThickness: 1 } });
+  const out = applyEffectChain(buf, ['voronoi'], { mediaType: 'image', W, H, intensity: 1 }, prng(7), { voronoi: { cellSize: 16, cellColor: 'source-average', edgeThickness: 1 } });
   const uniqueColors = new Set();
   for (let i = 0; i < out.length; i += 4) uniqueColors.add(`${out[i]},${out[i + 1]},${out[i + 2]}`);
   // A 64x64 canvas with 16px cells is at most 16 cells + 1 edge shade — nowhere near the
-  // per-pixel noise of the source image, which is the actual claim being tested here.
+  // per-pixel noise of the source image, which is the actual claim being tested here. At intensity 1, pure effect.
   assert.ok(uniqueColors.size <= 20, `expected a small flat palette from cell-averaging, got ${uniqueColors.size} unique colors`);
 });
 

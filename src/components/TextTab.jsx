@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { prng } from '../core/rng.js';
+import { randomSeed } from '../core/constants.js';
 import { getEffectsFor, applyEffectChain, randomEffectSelection } from '../effects/registry.js';
 import { TEXT_PRESETS } from '../effects/presets.js';
 import AlgoPanel from './AlgoPanel.jsx';
@@ -28,7 +29,7 @@ export default function TextTab({ seed, onReroll, initialRecipe }) {
   const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? p.filter((a) => a !== id) : [...p, id])); };
 
   const shuffle = () => {
-    const rng = prng(Date.now() % 999999);
+    const rng = prng(randomSeed());
     setPreset(null);
     setAlgos(randomEffectSelection('text', rng, { exclude: algos }));
     setIntensity(0.15 + rng() * 0.7);

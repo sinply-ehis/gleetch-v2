@@ -6,6 +6,13 @@ export const IMAGE_PRESETS = {
   DREAMY: { algos: ['gaussianBlur', 'duotone', 'lensAberration'], intensity: 0.5 },
   PRINT: { algos: ['halftoneFilter', 'levels'], intensity: 0.6 },
   HAUNTED: { algos: ['anomalousSpasm', 'scanline', 'invertZones'], intensity: 0.55 },
+  WATERCOLOR: { algos: ['watercolorBleed', 'inkWash'], intensity: 0.62 },
+  RISO: { algos: ['risograph', 'mangaScreentone'], intensity: 0.65 },
+  POLY: { algos: ['lowPoly', 'mandala'], intensity: 0.58 },
+  TAPESTRY: { algos: ['crossStitch', 'wovenTapestry'], intensity: 0.55 },
+  GLITCH2: { algos: ['databend', 'channelTear', 'staticBloom'], intensity: 0.7 },
+  CRAFT: { algos: ['trueAscii', 'blueprint'], intensity: 0.6 },
+  CYANO: { algos: ['cyanotype', 'duotoneGrade'], intensity: 0.55 },
 };
 
 export const TEXT_PRESETS = {

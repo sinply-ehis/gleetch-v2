@@ -36,9 +36,9 @@ test('dotMosaic handles dimensions that are not an exact multiple of the cell si
 });
 
 test('dotMosaic preserves the source color on a solid-color image', () => {
-  const out = dotMosaic(solidBuf(40, 40, 200, 60, 30), 40, 40, 0.6);
+  const out = dotMosaic(solidBuf(40, 40, 200, 60, 30), 40, 40, 1);
   // every drawn (non-background) pixel should be the same solid color back —
-  // averaging a uniform cell can't produce anything else
+  // averaging a uniform cell can't produce anything else (at intensity 1, pure effect)
   for (let i = 0; i < out.length; i += 4) {
     const isBackground = out[i] === 255 && out[i + 1] === 255 && out[i + 2] === 255;
     if (!isBackground) {

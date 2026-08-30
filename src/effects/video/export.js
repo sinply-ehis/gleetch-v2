@@ -55,6 +55,29 @@ export function createCombinedRecorder(canvas, audioStream, fps = 30) {
   };
 }
 
+// Procedural export: records the output canvas itself for a fixed duration
+// (no source video element). Uses the provided render loop to advance frames
+// while MediaRecorder captures the canvas stream.
+export function exportProceduralVideo(outputCanvas, renderFrameFn, durationMs = 5000, fps = 30, audioSetup) {
+  return new Promise((resolve, reject) => {
+    try {
+      const recorder = createCombinedRecorder(outputCanvas, audioSetup?.stream ?? null, fps);
+      const start = performance.now();
+      const tick = () => {
+        const elapsed = performance.now() - start;
+        renderFrameFn(elapsed);
+        if (elapsed < durationMs) requestAnimationFrame(tick);
+        else {
+          recorder.stopAndGetBlob().then(resolve).catch(reject);
+        }
+      };
+      recorder.start();
+      audioSetup?.start();
+      requestAnimationFrame(tick);
+    } catch (e) { reject(e); }
+  });
+}
+
 // Orchestrates a full export pass: rewinds the source video, records the
 // output canvas (and, if audioSetup is provided, the processed audio track
 // alongside it in the same file) while it plays through the effect render

@@ -58,6 +58,19 @@ export function createMockContext(W, H) {
     createImageData(w, h) { return { data: new Uint8ClampedArray(w * h * 4), width: w, height: h }; },
     getImageData(x, y, w, h) { return { data: buf.slice(0), width: w, height: h }; },
     putImageData(imgData) { buf.set(imgData.data); },
+    drawImage(src) {
+      try {
+        if (src && typeof src.getContext === 'function') {
+          const sctx = src.getContext('2d');
+          if (sctx && typeof sctx.getImageData === 'function') {
+            const sd = sctx.getImageData(0, 0, W, H);
+            if (sd && sd.data) buf.set(sd.data.slice(0, Math.min(buf.length, sd.data.length)));
+            return;
+          }
+        }
+        if (src && src.data) buf.set(src.data.slice(0, Math.min(buf.length, src.data.length)));
+      } catch {}
+    },
     save() {}, restore() {}, translate() {}, rotate() {}, scale() {}, clip() {}, setLineDash() {},
   };
 }

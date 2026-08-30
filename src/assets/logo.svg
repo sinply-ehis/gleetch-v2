@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 72" role="img" aria-label="GLEETCH">
+  <g font-family="'VT323', ui-monospace, monospace" font-size="64" letter-spacing="6">
+    <text x="0" y="56" fill="#00E5FF" opacity="0.9" transform="translate(-1.6,0)">GLEETCH</text>
+    <text x="0" y="56" fill="#FF2D6B" opacity="0.9" transform="translate(1.6,0)">GLEETCH</text>
+    <text x="0" y="56" fill="#F0F0FA">GLEETCH</text>
+  </g>
+  <rect x="0" y="34" width="360" height="3" fill="#00E5FF" opacity="0.9"/>
+  <rect x="0" y="52" width="360" height="2" fill="#FF2D6B" opacity="0.9"/>
+</svg>

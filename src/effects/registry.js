@@ -8,6 +8,13 @@ import { UNCANNY_EFFECTS } from './image/uncanny.js';
 import { PRESENCE_EFFECTS } from './image/presence.js';
 import { PARTICLE_EFFECTS } from './image/particles.js';
 import { GEOMETRIC_EFFECTS } from './image/geometric.js';
+import { PAINTERLY_EFFECTS } from './image/painterly.js';
+import { PRINT_EFFECTS } from './image/print.js';
+import { GEOMETRIC2_EFFECTS } from './image/geometric2.js';
+import { PHOTO_TONE_EFFECTS } from './image/photoTone.js';
+import { TEXTILE_EFFECTS } from './image/textile.js';
+import { CORRUPTION2_EFFECTS } from './image/corruption2.js';
+import { CRAFT_EFFECTS } from './image/craft.js';
 import { TEXT_EFFECTS } from './text/corruption.js';
 import { CLEAN_TONE_TEXT_EFFECTS } from './text/clean-tone.js';
 import { TYPOGRAPHY_TEXT_EFFECTS } from './text/typography.js';
@@ -30,6 +37,13 @@ export const ALL_EFFECTS = [
   ...PRESENCE_EFFECTS,
   ...PARTICLE_EFFECTS,
   ...GEOMETRIC_EFFECTS,
+  ...PAINTERLY_EFFECTS,
+  ...PRINT_EFFECTS,
+  ...GEOMETRIC2_EFFECTS,
+  ...PHOTO_TONE_EFFECTS,
+  ...TEXTILE_EFFECTS,
+  ...CORRUPTION2_EFFECTS,
+  ...CRAFT_EFFECTS,
   ...TEXT_EFFECTS,
   ...CLEAN_TONE_TEXT_EFFECTS,
   ...TYPOGRAPHY_TEXT_EFFECTS,
@@ -148,6 +162,13 @@ const SIGNATURE_CHAINS = {
     ['gaussianBlur', 'displacementMap', 'duotone'],
     ['oilPaint', 'displacementMap', 'gaussianBlur'],
     ['voronoi', 'quantize', 'duotone'],
+    ['watercolorBleed', 'inkWash', 'mangaScreentone'],
+    ['risograph', 'screenPrint', 'halftoneFilter'],
+    ['lowPoly', 'mandala', 'leadedGlass'],
+    ['cyanotype', 'duotoneGrade', 'crossStitch'],
+    ['trueAscii', 'blueprint', 'woodcut'],
+    ['databend', 'channelTear', 'staticBloom'],
+    ['ghostTrail', 'macroblockRot', 'scanlineWarp'],
   ],
   video: [
     ['dataMosh', 'pixelSort', 'duotone'],
@@ -181,9 +202,10 @@ const SIGNATURE_CHAINS = {
   ],
 };
 
-// Composed chains lean on the glitch-identity categories; everything
-// else stays fair game but slightly quieter.
-const CATEGORY_WEIGHTS = { corruption: 1.6, distortion: 1.6, stylize: 1.3, 'color-tone': 1.1 };
+// True randomness: no category weighting — every effect equally likely.
+// Previously weighted corruption/distortion higher, which biased toward
+// line-heavy geometric effects and made shuffles feel like "always lines".
+const CATEGORY_WEIGHTS = {};
 const DEFAULT_CATEGORY_WEIGHT = 1;
 
 function weightedCategoryPick(rng, categories) {
@@ -204,26 +226,36 @@ function pickFromCategory(rng, idsByCategory, category, taken) {
 }
 
 // Picks a dynamic chain of effect ids for a media type (used by the shuffle
-// button). Two modes: ~30% of rerolls return a curated SIGNATURE_CHAINS
+// button). Two modes: ~15% of rerolls return a curated SIGNATURE_CHAINS
 // combo (occasionally grown with one complementary effect), the rest are
-// composed fresh — an anchor category chosen with glitch-identity weights,
-// then each step prefers a category different from the last so effects
-// complement instead of cancelling. Never repeats an id within a chain.
+// composed fresh with pure randomness — an anchor category chosen with
+// glitch-identity weights, then each step prefers a category different
+// from the last so effects complement instead of cancelling. Never repeats
+// an id within a chain.
 //   options.exclude         — ids to avoid (pass the current chain so a
 //                             reroll can never return the same chain twice)
-//   options.signatureChance — 0..1, default 0.3
+//   options.signatureChance — 0..1, default 0.15 (lower = more pure randomness)
+//   options.pureRandom      — if true, skip signatures entirely
 export function randomEffectSelection(mediaType, rng, options = {}) {
-  const { minCount = 2, maxCount = 4, exclude = [], signatureChance = 0.3 } = options;
+  const { minCount = 2, maxCount = 4, exclude = [], signatureChance = 0.15, pureRandom = false } = options;
   const pool = getEffectsFor(mediaType).filter((e) => !exclude.includes(e.id));
   if (!pool.length) return [];
   const taken = new Set(exclude);
 
-  if (rng() < signatureChance) {
+  if (!pureRandom && rng() < signatureChance) {
     const signatures = (SIGNATURE_CHAINS[mediaType] || []).filter((chain) =>
       chain.every((id) => pool.some((e) => e.id === id)));
     if (signatures.length) {
       const chain = [...signatures[Math.floor(rng() * signatures.length)]];
       chain.forEach((id) => taken.add(id));
+      // pure randomness tweak: perturb signature with chaos jitter 20% of the time
+      if (rng() < 0.2 && chain.length > 1) {
+        const idx = Math.floor(rng() * chain.length);
+        const alt = pool.filter((e) => !taken.has(e.id) && e.category === chain[idx] ? true : false);
+        // fallback to any not taken
+        const pick = (alt.length ? alt : pool.filter((e) => !taken.has(e.id)))[Math.floor(rng() * (alt.length || 1))];
+        if (pick) { taken.delete(chain[idx]); chain[idx] = pick.id; taken.add(pick.id); }
+      }
       if (rng() < 0.25 && chain.length < maxCount) {
         const growPool = mediaType === 'video' ? pool.filter((e) => e.realtimeSafe !== false) : pool;
         const rest = growPool.filter((e) => !taken.has(e.id));

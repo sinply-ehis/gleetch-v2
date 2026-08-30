@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { prng } from '../core/rng.js';
+import { randomSeed } from '../core/constants.js';
 import { encodeWAV } from '../core/wav-encoder.js';
 import { processAudioBuffer } from '../effects/audio/process-buffer.js';
 import { getEffectsFor, randomEffectSelection } from '../effects/registry.js';
@@ -108,7 +109,7 @@ export default function AudioTab({ seed, onReroll, initialRecipe }) {
   const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? p.filter((a) => a !== id) : [...p, id])); };
 
   const shuffle = () => {
-    const rng = prng(Date.now() % 999999);
+    const rng = prng(randomSeed());
     setPreset(null);
     setAlgos(randomEffectSelection('audio', rng, { exclude: algos }));
     setIntensity(0.2 + rng() * 0.65);

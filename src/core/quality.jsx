@@ -8,12 +8,14 @@ const QUALITY_TIERS = {
     maxCanvasDim: 256,
     videoMaxDim: 320,
     targetFPS: 15,
-    heavyEffectThrottle: 8, // process every Nth frame
+    heavyEffectThrottle: 8,
     waveformSteps: 4,
     audioQuality: 0.5,
-    enableHeavyEffects: false, // oilPaint, voronoi, overlay
+    enableHeavyEffects: false,
     enableParticles: false,
     enableWebGlitch: false,
+    maxLayers: 1,
+    maxCustomDim: 1024,
   },
   medium: {
     name: 'MEDIUM',
@@ -26,18 +28,22 @@ const QUALITY_TIERS = {
     enableHeavyEffects: true,
     enableParticles: true,
     enableWebGlitch: true,
+    maxLayers: 2,
+    maxCustomDim: 1536,
   },
   high: {
     name: 'HIGH',
     maxCanvasDim: 512,
     videoMaxDim: 720,
     targetFPS: 60,
-    heavyEffectThrottle: 1, // every frame
+    heavyEffectThrottle: 1,
     waveformSteps: 1,
     audioQuality: 1,
     enableHeavyEffects: true,
     enableParticles: true,
     enableWebGlitch: true,
+    maxLayers: 3,
+    maxCustomDim: 2048,
   },
 };
 

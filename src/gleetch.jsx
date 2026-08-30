@@ -10,6 +10,7 @@ import VideoTab from './components/VideoTab.jsx';
 import WebTab from './components/WebTab.jsx';
 import SidebarResizer from './components/SidebarResizer.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
+import logoUrl from './assets/logo.svg';
 
 const TABS = [
   ['visual', '⬛ VISUAL'],
@@ -64,6 +65,8 @@ function AppInner() {
     const onKey = (e) => {
       if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
       if (e.code === 'Space') { e.preventDefault(); rerollRef.current?.(); }
+      if (e.code === 'ArrowRight') { e.preventDefault(); setSeed((s) => (s + 1) % 2147483647); setIter((i) => i + 1); }
+      if (e.code === 'ArrowLeft') { e.preventDefault(); setSeed((s) => (s - 1 + 2147483647) % 2147483647); setIter((i) => i + 1); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -71,10 +74,10 @@ function AppInner() {
 
   return (
     <div className="root">
-<header className="header">
-        <div>
-          <div className={`logo ${burst ? 'burst' : ''}`}>GLEETCH</div>
-          <div className="tagline">a general special-effects library · images · text · audio · video · css · 120 patterns · 65+ effects</div>
+ <header className="header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src={logoUrl} alt="GLEETCH" className={`logo-img ${burst ? 'burst' : ''}`} width="168" height="28" style={{ display: 'block', height: 28, width: 'auto' }} />
+          <div className="tagline" style={{ paddingBottom: 0 }}>a general special-effects library · images · text · audio · video · css · 120 patterns · infinite · 100+ effects</div>
         </div>
         <div className="tabs">
           {TABS.map(([id, label]) => (

@@ -16,14 +16,16 @@ generated CSS. This is the one system every tab ultimately calls into.
 
 ### Responsible Components
 - `core/rng.js` — seeded PRNG (`prng(seed)`), noise (`fbm`, `vnoise`),
-  `seedFromString`
+  `seedFromString` — seed space now 2^31 via `crypto.getRandomValues`
+- `core/blend.js` — `lerpBuffer`/`intensityLerp` (guarantees intensity 0=int identity, 1=full)
+- `core/formats.js` — editable ratios (ORIGINAL/1:1/4:3/16:9/9:16/21:9/custom up to 2048, cover/contain) + `resolveDims`
+- `core/procedural.js` — infinite procedural layering (1-3 patterns, distinct families, blend modes)
 - `effects/registry.js` — `ALL_EFFECTS`, `getEffectsFor`, `getEffectById`,
   `applyEffectChain`, `applyVideoEffectChain`, `buildWebCSS`,
-  `randomEffectSelection`
+  `randomEffectSelection` (lowered `signatureChance` 0.3→0.15 + pure-random jitter for true infinitude)
 - `effects/image/*.js`, `effects/text/*.js`, `effects/audio/*.js`,
-  `effects/web/*.js` — the actual effect functions (image gained
-  `particles.js`/`geometric.js`, web gained `overlay.js`/`stylize.js` in
-  the params-wiring + new-effects round — see CHANGELOG.md)
+  `effects/web/*.js` — the actual effect functions (this round adds `painterly.js`, `print.js`,
+  `geometric2.js`, `photoTone.js`, `textile.js`, `corruption2.js`, `craft.js` — 34 new image styles)
 
 ### Depends On
 Nothing internal — this is the foundation layer. External: none (pure JS).
@@ -102,7 +104,8 @@ without the media type unless you're certain the id can't collide.
 
 ### Purpose
 120 generative patterns (draw directly to a canvas context, seeded) used
-by the Visual tab's "generate" mode and by the overlay effects.
+by the Visual tab's "generate" mode and by the overlay effects — now composited
+via `core/procedural.js` into infinite layered compositions (quality-gated 1-3 layers).
 
 ### Responsible Components
 - `patterns/<family>.js` (mathematical, geometric, natural, signal,
@@ -114,7 +117,7 @@ by the Visual tab's "generate" mode and by the overlay effects.
 `core/color.js`, `core/rng.js` (`fbm`, `vnoise`)
 
 ### Used By
-- VisualTab (generate mode picks a random pattern per render)
+- VisualTab (generate mode now via `core/procedural.js` layering)
 - `effects/image/overlay.js` (blends a random pattern onto real content)
 
 ### Public Interfaces
@@ -360,12 +363,12 @@ working around it insecurely.
 ## Recipe Sharing
 
 ### Purpose
-Makes any tab's already-deterministic `{seed, algos, intensity, channel?}`
+Makes any tab's already-deterministic `{seed, algos, intensity, channel?, format?}`
 state shareable as a compact URL, since the app's whole architecture
-already guarantees that state fully determines output.
+already guarantees that state fully determines output. Visual recipes now carry `f:{id,w,h,fit}`.
 
 ### Responsible Components
-`core/recipe.js`, `components/CopyRecipeButton.jsx`
+`core/recipe.js`, `core/formats.js` (format prefs + `clampDim`), `components/CopyRecipeButton.jsx`
 
 ### Depends On
 Nothing (pure functions; reads/writes `window.location` and

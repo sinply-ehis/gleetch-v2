@@ -1,4 +1,5 @@
 import { clamp } from '../../core/color.js';
+import { lerpBuffer } from '../../core/blend.js';
 
 // Sliding-window box blur along one axis — O(W*H) regardless of radius.
 // Three passes of box blur closely approximate a true Gaussian blur.
@@ -28,18 +29,28 @@ function boxBlur1D(src, W, H, radius, horizontal) {
 
 export function gaussianBlur(buf, W, H, intensity) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
+  if (intensity >= 1) {
+    const radius = 12;
+    let out = buf;
+    for (let pass = 0; pass < 3; pass++) {
+      out = boxBlur1D(out, W, H, radius, true);
+      out = boxBlur1D(out, W, H, radius, false);
+    }
+    return out;
+  }
   const radius = Math.max(1, Math.round(intensity * 12));
   let out = buf;
   for (let pass = 0; pass < 3; pass++) {
     out = boxBlur1D(out, W, H, radius, true);
     out = boxBlur1D(out, W, H, radius, false);
   }
-  return out;
+  return lerpBuffer(buf, out, intensity);
 }
 
 // Mosaic: averages color within NxN blocks. Block size scales with intensity.
 export function pixelate(buf, W, H, intensity) {
-  const out = new Uint8ClampedArray(buf.length);
+  if (intensity <= 0) return new Uint8ClampedArray(buf);
+  const outRaw = new Uint8ClampedArray(buf.length);
   const size = Math.max(1, Math.round(intensity * 40));
   for (let by = 0; by < H; by += size) {
     for (let bx = 0; bx < W; bx += size) {
@@ -55,12 +66,13 @@ export function pixelate(buf, W, H, intensity) {
       for (let y = 0; y < bh; y++) {
         for (let x = 0; x < bw; x++) {
           const i = ((by + y) * W + (bx + x)) * 4;
-          out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = 255;
+          outRaw[i] = r; outRaw[i + 1] = g; outRaw[i + 2] = b; outRaw[i + 3] = 255;
         }
       }
     }
   }
-  return out;
+  if (intensity >= 1) return outRaw;
+  return lerpBuffer(buf, outRaw, intensity);
 }
 
 // Clean radial lens warp (barrel/pincushion) — a physical-looking bulge or pinch,

@@ -1,4 +1,5 @@
 import { clamp } from '../../core/color.js';
+import { lerpBuffer } from '../../core/blend.js';
 
 function getSortVal(buf, i, ch) {
   return ch === 'r' ? buf[i] : ch === 'g' ? buf[i + 1] : ch === 'b' ? buf[i + 2]
@@ -133,15 +134,16 @@ export function invertZones(buf, W, H, intensity, rng) {
 
 export function quantize(buf, W, H, intensity) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
-  const out = new Uint8ClampedArray(buf);
-  const levels = Math.max(2, 8 - intensity * 6 | 0);
+  const levels = 2;
   const step = 256 / levels;
-  for (let i = 0; i < out.length; i += 4) {
-    out[i] = Math.floor(out[i] / step) * step;
-    out[i + 1] = Math.floor(out[i + 1] / step) * step;
-    out[i + 2] = Math.floor(out[i + 2] / step) * step;
+  const full = new Uint8ClampedArray(buf);
+  for (let i = 0; i < full.length; i += 4) {
+    full[i] = Math.floor(full[i] / step) * step;
+    full[i + 1] = Math.floor(full[i + 1] / step) * step;
+    full[i + 2] = Math.floor(full[i + 2] / step) * step;
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 export function stripeBurn(buf, W, H, intensity, rng) {

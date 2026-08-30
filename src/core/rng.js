@@ -2,7 +2,14 @@
 // output is fully reproducible from a single seed integer.
 
 export function prng(seed) {
+  // Hash the seed first so sequential seeds (e.g. seed, seed+1 from ArrowLeft/Right walk)
+  // don't produce correlated first values — the LCG alone has poor avalanche for the
+  // first output (seed 1 vs 2 differ by only 0.0003). Use MurmurHash3 finalizer.
   let s = (seed >>> 0) || 1;
+  s ^= s >>> 16; s = Math.imul(s, 0x85ebca6b) >>> 0;
+  s ^= s >>> 13; s = Math.imul(s, 0xc2b2ae35) >>> 0;
+  s ^= s >>> 16;
+  s = s || 1;
   return () => {
     s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
     return s / 4294967296;

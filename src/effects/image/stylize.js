@@ -1,4 +1,5 @@
 import { clamp, hsl2rgb, hexToRgb } from '../../core/color.js';
+import { lerpBuffer } from '../../core/blend.js';
 
 function luma(buf, i) {
   return buf[i] * 0.3 + buf[i + 1] * 0.59 + buf[i + 2] * 0.11;
@@ -7,7 +8,7 @@ function luma(buf, i) {
 // Classic newsprint halftone: darker cells get bigger dots, on a white ground.
 export function halftoneFilter(buf, W, H, intensity) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
-  const out = new Uint8ClampedArray(buf.length).fill(255);
+  const full = new Uint8ClampedArray(buf.length).fill(255);
   const cell = Math.max(4, Math.round(20 - intensity * 14));
   for (let by = 0; by < H; by += cell) {
     for (let bx = 0; bx < W; bx += cell) {
@@ -28,19 +29,20 @@ export function halftoneFilter(buf, W, H, intensity) {
           const dist = Math.hypot(px - ccx, py - ccy);
           if (dist <= radius) {
             const i = (py * W + px) * 4;
-            out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = 255;
+            full[i] = r; full[i + 1] = g; full[i + 2] = b; full[i + 3] = 255;
           }
         }
       }
     }
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 // Sobel edge detection rendered as a pencil sketch (dark lines on white).
 export function edgeSketch(buf, W, H, intensity) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
-  const out = new Uint8ClampedArray(buf.length);
+  const full = new Uint8ClampedArray(buf.length);
   const gray = new Float32Array(W * H);
   for (let i = 0, p = 0; i < buf.length; i += 4, p++) gray[p] = luma(buf, i);
 
@@ -57,20 +59,21 @@ export function edgeSketch(buf, W, H, intensity) {
         }
       }
       const mag = Math.sqrt(sx * sx + sy * sy);
-      const shade = clamp(255 - mag * (0.5 + intensity * 1.5), 0, 255);
+      const shade = clamp(255 - mag * (0.5 + 1 * 1.5), 0, 255);
       const i = (y * W + x) * 4;
-      out[i] = out[i + 1] = out[i + 2] = shade; out[i + 3] = 255;
+      full[i] = full[i + 1] = full[i + 2] = shade; full[i + 3] = 255;
     }
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 // Oil-paint mode filter: each pixel becomes the average color of the most
 // common luminance bucket in its neighborhood (Costa-style oil paint).
 export function oilPaint(buf, W, H, intensity) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
-  const out = new Uint8ClampedArray(buf.length);
-  const radius = Math.max(1, Math.min(5, Math.round(intensity * 5)));
+  const full = new Uint8ClampedArray(buf.length);
+  const radius = 5;
   const levels = 16;
   const bucketCount = new Int32Array(levels);
   const bucketR = new Int32Array(levels);
@@ -92,10 +95,11 @@ export function oilPaint(buf, W, H, intensity) {
       for (let b = 1; b < levels; b++) if (bucketCount[b] > bucketCount[best]) best = b;
       const di = (y * W + x) * 4;
       const n = Math.max(1, bucketCount[best]);
-      out[di] = bucketR[best] / n; out[di + 1] = bucketG[best] / n; out[di + 2] = bucketB[best] / n; out[di + 3] = 255;
+      full[di] = bucketR[best] / n; full[di + 1] = bucketG[best] / n; full[di + 2] = bucketB[best] / n; full[di + 3] = 255;
     }
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 // Circle-packed mosaic: same grid-cell structure as halftoneFilter, but
@@ -105,8 +109,8 @@ export function oilPaint(buf, W, H, intensity) {
 // W/H/cell, never jittered, so the grid reads as aligned/structured.
 export function dotMosaic(buf, W, H, intensity) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
-  const out = new Uint8ClampedArray(buf.length).fill(255);
-  const cell = Math.max(4, Math.round(20 - intensity * 14));
+  const full = new Uint8ClampedArray(buf.length).fill(255);
+  const cell = Math.max(4, Math.round(20 - 1 * 14));
   const radius = cell * 0.58; // >cell/2 so neighboring dots touch/slightly overlap
   for (let by = 0; by < H; by += cell) {
     const bh = Math.min(cell, H - by);
@@ -127,13 +131,14 @@ export function dotMosaic(buf, W, H, intensity) {
           const dist = Math.hypot(px - ccx, py - ccy);
           if (dist <= radius) {
             const i = (py * W + px) * 4;
-            out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = 255;
+            full[i] = r; full[i + 1] = g; full[i + 2] = b; full[i + 3] = 255;
           }
         }
       }
     }
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 // Built-in multi-color mode palette — Gleetch's own accent pair (cyan,
@@ -165,10 +170,10 @@ export function asciiShapes(buf, W, H, intensity, rng, params) {
   if (intensity <= 0) return new Uint8ClampedArray(buf);
   const mode = params?.colorMode ?? 'palette';
   const customColor = hexToRgb(params?.color);
-  const out = new Uint8ClampedArray(buf.length);
-  for (let i = 0; i < out.length; i += 4) { out[i] = 8; out[i + 1] = 8; out[i + 2] = 16; out[i + 3] = 255; }
+  const full = new Uint8ClampedArray(buf.length);
+  for (let i = 0; i < full.length; i += 4) { full[i] = 8; full[i + 1] = 8; full[i + 2] = 16; full[i + 3] = 255; }
 
-  const cell = Math.max(4, Math.round(20 - intensity * 14));
+  const cell = Math.max(4, Math.round(20 - 1 * 14));
   const maxR = cell * 0.62, minR = cell * 0.12;
 
   for (let by = 0; by < H; by += cell) {
@@ -199,13 +204,14 @@ export function asciiShapes(buf, W, H, intensity, rng, params) {
           const px = bx + x, py = by + y;
           if (Math.hypot(px - ccx, py - ccy) <= radius) {
             const i = (py * W + px) * 4;
-            out[i] = color[0]; out[i + 1] = color[1]; out[i + 2] = color[2]; out[i + 3] = 255;
+            full[i] = color[0]; full[i + 1] = color[1]; full[i + 2] = color[2]; full[i + 3] = 255;
           }
         }
       }
     }
   }
-  return out;
+  if (intensity >= 1) return full;
+  return lerpBuffer(buf, full, intensity);
 }
 
 export const STYLIZE_EFFECTS = [

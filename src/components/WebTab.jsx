@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { prng } from '../core/rng.js';
+import { randomSeed } from '../core/constants.js';
 import { getEffectsFor, buildWebCSS, randomEffectSelection } from '../effects/registry.js';
 import { WEB_PRESETS } from '../effects/presets.js';
 import AlgoPanel from './AlgoPanel.jsx';
@@ -59,7 +60,7 @@ export default function WebTab({ seed, onReroll, initialRecipe }) {
   const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? p.filter((a) => a !== id) : [...p, id])); };
 
   const shuffle = () => {
-    const rng = prng(Date.now() % 999999);
+    const rng = prng(randomSeed());
     setPreset(null);
     setAlgos(randomEffectSelection('web', rng, { exclude: algos }));
     setIntensity(0.3 + rng() * 0.6);

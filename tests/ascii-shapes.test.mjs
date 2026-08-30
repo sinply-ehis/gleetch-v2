@@ -31,7 +31,7 @@ test('different seeds produce different random-mode output (rng is actually bein
 
 test('single mode uses exactly the given color, palette/random do not', () => {
   const buf = solidBuf(40, 40, 20, 20, 20);
-  const single = asciiShapes(buf, 40, 40, 0.6, prng(7), { colorMode: 'single', color: '#112233' });
+  const single = asciiShapes(buf, 40, 40, 1, prng(7), { colorMode: 'single', color: '#112233' });
   const [r, g, b] = hexToRgb('#112233');
   let sawExpected = false, sawSomethingElse = false;
   for (let i = 0; i < single.length; i += 4) {
@@ -52,7 +52,7 @@ test('missing params falls back to palette mode and a white single-color default
 
 test('near-white regions are left as background, not drawn as a shrinking dot', () => {
   const buf = solidBuf(40, 40, 250, 250, 250); // near-white everywhere
-  const out = asciiShapes(buf, 40, 40, 0.6, prng(5), { colorMode: 'palette' });
+  const out = asciiShapes(buf, 40, 40, 1, prng(5), { colorMode: 'palette' });
   for (let i = 0; i < out.length; i += 4) {
     assert.equal(out[i], 8, 'near-white input should stay background, found a drawn pixel');
   }

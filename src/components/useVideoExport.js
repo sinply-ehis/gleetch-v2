@@ -3,9 +3,9 @@ import { prng } from '../core/rng.js';
 import { encodeWAV } from '../core/wav-encoder.js';
 import { processAudioBuffer } from '../effects/audio/process-buffer.js';
 import { applyEffectChain } from '../effects/registry.js';
-import { exportVideo, prepareAudioTrack } from '../effects/video/export.js';
+import { exportVideo, exportProceduralVideo, prepareAudioTrack } from '../effects/video/export.js';
 
-export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTrack, seed, maxDim = 720 }) {
+export function useVideoExport({ videoRef, workRef, outRef, renderFrame, renderProceduralFrame, audioTrack, seed, maxDim = 720, mode = 'upload' }) {
   const [exporting, setExporting] = useState(false);
 
   const captureFrame = useCallback(() => {
@@ -47,8 +47,31 @@ export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTr
   }, [videoRef, workRef, seed, maxDim]);
 
   const runExport = useCallback(async (withAudio, setPlaying) => {
-    const vid = videoRef.current, oc = outRef.current;
-    if (!vid || !oc) return;
+    const oc = outRef.current;
+    if (!oc) return;
+    // Procedural mode: no source video element, record the output canvas directly
+    if (mode === 'generate') {
+      setExporting(true);
+      setPlaying(true);
+      try {
+        let audioSetup;
+        if (withAudio && audioTrack.audioBuffer) {
+          const ctx = audioTrack.audioCtxRef.current;
+          const processed = processAudioBuffer(ctx, audioTrack.audioBuffer, audioTrack.audioAlgos, audioTrack.audioIntensity, seed, audioTrack.audioEffectParams);
+          audioSetup = prepareAudioTrack(ctx, processed);
+        }
+        const blob = await exportProceduralVideo(oc, (t) => renderProceduralFrame(t), 5000, 30, audioSetup);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `gleetch-video-${String(seed).padStart(6, '0')}.webm`; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) { console.error('Procedural video export failed:', e); }
+      setPlaying(false);
+      setExporting(false);
+      return;
+    }
+    const vid = videoRef.current;
+    if (!vid) return;
     setExporting(true);
     setPlaying(true);
     try {
@@ -68,7 +91,7 @@ export function useVideoExport({ videoRef, workRef, outRef, renderFrame, audioTr
     }
     setPlaying(false);
     setExporting(false);
-  }, [videoRef, outRef, renderFrame, seed, audioTrack]);
+  }, [videoRef, outRef, renderFrame, renderProceduralFrame, seed, audioTrack, mode]);
 
   const exportAudioOnly = useCallback(() => {
     if (!audioTrack.audioBuffer || !audioTrack.audioCtxRef.current) return;

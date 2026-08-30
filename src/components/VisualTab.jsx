@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { prng } from '../core/rng.js';
-import { loadImageFile, computeAdaptiveSize } from '../core/canvas-utils.js';
-import { CANVAS_SIZE as SIZE } from '../core/constants.js';
-import { PATTERNS } from '../patterns/registry.js';
+import { loadImageFile, drawImageCover } from '../core/canvas-utils.js';
+import { FORMATS, resolveDims, clampDim } from '../core/formats.js';
+import { renderProcedural } from '../core/procedural.js';
 import { getEffectsFor, applyEffectChain, randomEffectSelection } from '../effects/registry.js';
 import { IMAGE_PRESETS, V_CHANNELS } from '../effects/presets.js';
+import { randomSeed } from '../core/constants.js';
 import AlgoPanel from './AlgoPanel.jsx';
 import PresetPanel from './PresetPanel.jsx';
 import UploadZone from './UploadZone.jsx';
@@ -16,15 +17,22 @@ import { useQuality } from '../core/quality.jsx';
 
 const IMAGE_EFFECTS = getEffectsFor('image');
 
+function loadFormatPref() {
+  try {
+    const raw = localStorage.getItem('gleetch-format');
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || !o.id) return null;
+    return o;
+  } catch { return null; }
+}
+
 export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploadedImg, setUploadedImg, initialRecipe }) {
   const { current: quality } = useQuality();
-  
-  // The tab always carries a random effect chain: a fresh random pick on
-  // mount (unless a shared recipe says otherwise), and an instant random
-  // refill if the user removes every effect.
+
   const [algos, setAlgos] = useState(() => {
     if (initialRecipe?.a?.length) return initialRecipe.a;
-    return randomEffectSelection('image', prng(Date.now() % 999999));
+    return randomEffectSelection('image', prng(randomSeed()));
   });
   const [intensity, setIntensity] = useState(initialRecipe?.i ?? 0.55);
   const [channel, setChannel] = useState(initialRecipe?.c ?? 'brightness');
@@ -34,24 +42,45 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
   const [showAdv, setShowAdv] = useState(false);
   const workRef = useRef(null);
   const outRef = useRef(null);
-
-  // Reused output ImageData (getImageData itself always allocates fresh)
   const outImageDataRef = useRef(null);
 
-  // Quality-adaptive dimensions
-  const maxDim = quality.maxCanvasDim;
-  const dims = useMemo(
-    () => {
-      if (mode === 'upload' && uploadedImg) {
-        const { W, H } = computeAdaptiveSize(uploadedImg);
-        return { W: Math.min(W, maxDim), H: Math.min(H, maxDim) };
-      }
-      return { W: Math.min(SIZE, maxDim), H: Math.min(SIZE, maxDim) };
-    },
-    [mode, uploadedImg, maxDim]
-  );
+  // Format state: id + custom W/H + fit
+  const [fmt, setFmt] = useState(() => {
+    if (initialRecipe?.f?.id) {
+      return {
+        id: initialRecipe.f.id,
+        w: clampDim(initialRecipe.f.w ?? 512),
+        h: clampDim(initialRecipe.f.h ?? 512),
+        fit: initialRecipe.f.fit === 'contain' ? 'contain' : 'cover',
+      };
+    }
+    const pref = loadFormatPref();
+    if (pref?.id) return { id: pref.id, w: clampDim(pref.w ?? 512), h: clampDim(pref.h ?? 512), fit: pref.fit === 'contain' ? 'contain' : 'cover' };
+    return { id: 'original', w: 512, h: 512, fit: 'cover' };
+  });
+  const [customW, setCustomW] = useState(String(fmt.w));
+  const [customH, setCustomH] = useState(String(fmt.h));
 
-  // Debounced intensity/effectParams for sliders
+  useEffect(() => {
+    try { localStorage.setItem('gleetch-format', JSON.stringify(fmt)); } catch { /* ignore */ }
+  }, [fmt]);
+
+  const capForCustom = quality.maxCustomDim ?? 2048;
+  const dimsInfo = useMemo(() => {
+    const cw = parseInt(customW, 10);
+    const ch = parseInt(customH, 10);
+    const w = Number.isFinite(cw) ? cw : fmt.w;
+    const h = Number.isFinite(ch) ? ch : fmt.h;
+    // For original+upload we need img, otherwise ratio/custom
+    if (fmt.id === 'custom') return resolveDims('custom', w, h, null, capForCustom);
+    if (fmt.id === 'original' && mode === 'upload' && uploadedImg) return resolveDims('original', 0, 0, uploadedImg, capForCustom);
+    return resolveDims(fmt.id, 0, 0, null, capForCustom);
+  }, [fmt, customW, customH, mode, uploadedImg, capForCustom]);
+
+  // Also compute actual capped by quality maxCanvasDim? We already capped via maxCustomDim per tier.
+  // For original+upload, resolveDims already caps to capForCustom.
+  const dims = { W: dimsInfo.W, H: dimsInfo.H };
+
   const [intensityDebounced, setIntensityDebounced] = useState(intensity);
   const [effectParamsDebounced, setEffectParamsDebounced] = useState(effectParams);
 
@@ -65,31 +94,33 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
     return () => clearTimeout(t);
   }, [effectParams]);
 
+  const dimsMemo = useMemo(() => ({ W: dims.W, H: dims.H }), [dims.W, dims.H]);
   const run = useCallback(() => {
     const wc = workRef.current, oc = outRef.current;
     if (!wc || !oc) return;
-    const { W, H } = dims;
+    const { W, H } = dimsMemo;
     setBusy(true);
     const render = () => {
       const ctx = wc.getContext('2d', { willReadFrequently: true });
-      const rng = prng(seed);
-
+      wc.width = W; wc.height = H;
+      oc.width = W; oc.height = H;
       if (mode === 'upload' && uploadedImg) {
-        ctx.clearRect(0, 0, W, H);
-        ctx.drawImage(uploadedImg, 0, 0, W, H);
+        if (fmt.fit === 'contain') {
+          ctx.fillStyle = '#0A0A1C';
+          ctx.fillRect(0, 0, W, H);
+          const scale = Math.min(W / uploadedImg.naturalWidth, H / uploadedImg.naturalHeight);
+          const sw = uploadedImg.naturalWidth * scale;
+          const sh = uploadedImg.naturalHeight * scale;
+          ctx.drawImage(uploadedImg, (W - sw) / 2, (H - sh) / 2, sw, sh);
+        } else {
+          drawImageCover(ctx, uploadedImg, W, H);
+        }
       } else {
-        const pattern = PATTERNS[Math.floor(rng() * PATTERNS.length)];
-        try { pattern.fn(ctx, W, H, rng); }
+        try { renderProcedural(ctx, W, H, seed, { maxLayers: quality.maxLayers ?? 3 }); }
         catch { ctx.fillStyle = '#FF2D6B'; ctx.fillRect(0, 0, W, H); }
       }
-
-      // getImageData always returns a fresh ImageData — the reuse win is
-      // the work canvas + the output ImageData, not this read.
       let buf = ctx.getImageData(0, 0, W, H).data;
-
       buf = applyEffectChain(buf, algos, { mediaType: 'image', W, H, intensity: intensityDebounced, channel }, prng(seed + 999), effectParamsDebounced);
-
-      // Reuse output ImageData
       let outImgData = outImageDataRef.current;
       if (!outImgData || outImgData.width !== W || outImgData.height !== H) {
         outImgData = oc.getContext('2d').createImageData(W, H);
@@ -103,23 +134,18 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
       catch (err) { console.error('VisualTab render failed:', err); }
       finally { setBusy(false); }
     }, 10);
-  }, [seed, mode, uploadedImg, algos, intensityDebounced, channel, dims, effectParamsDebounced]);
+  }, [seed, mode, uploadedImg, algos, intensityDebounced, channel, dimsMemo, effectParamsDebounced, fmt.fit, quality.maxLayers]);
 
   useEffect(() => { run(); }, [run]);
 
-  // Removing the last effect never leaves an empty chain: roll a fresh
-  // random one at the removal site instead of refilling in an effect.
-  const rollFreshChain = () => randomEffectSelection('image', prng(Date.now() % 999999));
-  const withoutOrRefill = (chain, id) => {
-    const next = chain.filter((a) => a !== id);
-    return next.length ? next : rollFreshChain();
-  };
+  const rollFreshChain = () => randomEffectSelection('image', prng(randomSeed()));
+  const withoutOrRefill = (chain, id) => chain.filter((a) => a !== id);
 
   const applyPreset = (k) => { const p = IMAGE_PRESETS[k]; setAlgos(p.algos); setIntensity(p.intensity); setPreset(k); };
   const toggleAlgo = (id) => { setPreset(null); setAlgos((p) => (p.includes(id) ? withoutOrRefill(p, id) : [...p, id])); };
 
   const shuffle = () => {
-    const rng = prng(Date.now() % 999999);
+    const rng = prng(randomSeed());
     setPreset(null);
     setAlgos(randomEffectSelection('image', rng, { exclude: algos }));
     setIntensity(0.3 + rng() * 0.6);
@@ -129,7 +155,7 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
     const oc = outRef.current; if (!oc) return;
     const a = document.createElement('a');
     a.href = format === 'jpg' ? oc.toDataURL('image/jpeg', 0.92) : oc.toDataURL('image/png');
-    a.download = `gleetch-${String(seed).padStart(6, '0')}.${format === 'jpg' ? 'jpg' : 'png'}`;
+    a.download = `gleetch-${String(seed).padStart(6, '0')}-${dims.W}x${dims.H}.${format === 'jpg' ? 'jpg' : 'png'}`;
     a.click();
   };
 
@@ -149,6 +175,17 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
 
   const seedStr = String(seed).padStart(6, '0');
 
+  const fmtId = fmt.id;
+  const applyFmt = (id) => {
+    if (id === 'custom') {
+      const w = clampDim(parseInt(customW, 10) || fmt.w);
+      const h = clampDim(parseInt(customH, 10) || fmt.h);
+      setFmt((prev) => ({ ...prev, id, w, h }));
+    } else {
+      setFmt((prev) => ({ ...prev, id }));
+    }
+  };
+
   return (
     <>
       <canvas ref={workRef} width={dims.W} height={dims.H} style={{ display: 'none' }} />
@@ -164,9 +201,31 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
         ) : (
           <div className="gen-box">
             <div className="gen-icon">⟳</div>
-            <div className="gen-text">120 HIDDEN PATTERNS<br />unique every roll</div>
+            <div className="gen-text">PROCEDURAL · INFINITE LAYERS<br />pure randomness every roll</div>
           </div>
         )}
+
+        <div className="div" />
+        <span className="lbl">FORMAT — {dims.W}×{dims.H} {dimsInfo.capped ? '· capped' : ''}</span>
+        <div className="fmt-row">
+          {FORMATS.map((f) => (
+            <button key={f.id} className={`fmt-btn ${fmtId === f.id ? 'on' : ''}`} onClick={() => applyFmt(f.id)}>{f.label}</button>
+          ))}
+        </div>
+        {fmtId === 'custom' && (
+          <div className="fmt-custom">
+            <input className="fmt-input" type="number" min="64" max="2048" value={customW} onChange={(e) => setCustomW(e.target.value)} onBlur={() => setFmt((p) => ({ ...p, w: clampDim(parseInt(customW, 10) || p.w), h: p.h }))} placeholder="W" />
+            <span style={{ color: '#4A4A80', fontSize: 10 }}>×</span>
+            <input className="fmt-input" type="number" min="64" max="2048" value={customH} onChange={(e) => setCustomH(e.target.value)} onBlur={() => setFmt((p) => ({ ...p, w: p.w, h: clampDim(parseInt(customH, 10) || p.h) }))} placeholder="H" />
+            <button className="fmt-apply" onClick={() => setFmt({ ...fmt, w: clampDim(parseInt(customW, 10) || fmt.w), h: clampDim(parseInt(customH, 10) || fmt.h) })}>APPLY</button>
+          </div>
+        )}
+        <div className="fmt-fit-row">
+          <span className="lbl" style={{ marginBottom: 0 }}>FIT</span>
+          <button className={`fit-btn ${fmt.fit === 'cover' ? 'on' : ''}`} onClick={() => setFmt((p) => ({ ...p, fit: 'cover' }))}>COVER</button>
+          <button className={`fit-btn ${fmt.fit === 'contain' ? 'on' : ''}`} onClick={() => setFmt((p) => ({ ...p, fit: 'contain' }))}>CONTAIN</button>
+        </div>
+        {dimsInfo.capped && <div className="sidebar-hint">capped by {quality.name} quality — switch to HIGH for full 2048</div>}
 
         <div className="div" />
         <span className="lbl">PRESETS</span>
@@ -204,7 +263,7 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
           <button className="act-btn" onClick={() => download('jpg')}>↓ JPG</button>
           <button className="act-btn" onClick={copy}>⎘ COPY</button>
         </div>
-        <CopyRecipeButton getRecipe={() => ({ t: 'visual', s: seed, a: algos, i: intensity, c: channel, p: effectParams })} />
+        <CopyRecipeButton getRecipe={() => ({ t: 'visual', s: seed, a: algos, i: intensity, c: channel, p: effectParams, f: { id: fmt.id, w: dims.W, h: dims.H, fit: fmt.fit } })} />
       </aside>
       <main className="main">
         <div className="canvas-wrap" onDragOver={(e) => e.preventDefault()} onDrop={onDropImage}>
@@ -217,7 +276,7 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
           <span>ITER {String(iter).padStart(4, '0')}</span>
           <span>{algos.length} EFFECT{algos.length !== 1 ? 'S' : ''}</span>
         </div>
-        <div className="canvas-hint">quality: {quality.name} · {dims.W}×{dims.H} · {quality.enableHeavyEffects ? 'all effects' : 'heavy effects disabled'}</div>
+        <div className="canvas-hint">quality: {quality.name} · {dims.W}×{dims.H} · {quality.enableHeavyEffects ? 'all effects' : 'heavy effects disabled'} {fmtId !== 'original' ? `· ${fmtId}` : ''}</div>
       </main>
     </>
   );

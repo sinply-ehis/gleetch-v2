@@ -138,8 +138,13 @@ surface the user is meant to read or interact with while it's animating.
   alone don't cause growth, only prevent overflow — see CHANGELOG.md's
   "viewer size regression" entry) and should not regress again the same
   way.
+- **Format controls:** `FORMAT` row (`.fmt-row`/`.fmt-btn`) + `COVER`/`CONTAIN` toggle (`.fit-btn`) live in the Visual sidebar above presets. Custom inputs (`64–2048`) use `.fmt-input`. All follow the 44px touch target and palette.
 
 ---
+
+## Logo & Favicon
+
+Logo is an SVG wordmark (`src/assets/logo.svg`) — VT323-derived RGB ghost layers (#00E5FF / #FF2D6B) + slice tears on a `#0A0A1C` ground. Header renders it as `<img>` wrapped in `.logo-img` so the existing `idle`/`burst` keyframes still apply. Favicon set lives in `public/` (`favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`, `icon-192/512.png`) and is linked from `index.html` via relative `./` base. Source single master is `public/favicon.svg`; PNGs are generated from it. No `.ico` (SVG+PNG only). Never introduce a new color outside the palette for logo tweaks.
 
 ## Icons
 
