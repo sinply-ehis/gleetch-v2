@@ -138,7 +138,6 @@ export default function VisualTab({ seed, iter, onReroll, mode, setMode, uploade
 
   useEffect(() => { run(); }, [run]);
 
-  const rollFreshChain = () => randomEffectSelection('image', prng(randomSeed()));
   const withoutOrRefill = (chain, id) => chain.filter((a) => a !== id);
 
   const applyPreset = (k) => { const p = IMAGE_PRESETS[k]; setAlgos(p.algos); setIntensity(p.intensity); setPreset(k); };

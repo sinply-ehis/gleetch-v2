@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/immutability, react-hooks/exhaustive-deps -- procedural video uses ref indirection intentionally, mirrors existing upload loop pattern */
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { prng } from '../core/rng.js';
+import { randomSeed } from '../core/constants.js';
 import { getEffectsFor, applyVideoEffectChain, applyEffectChain, randomEffectSelection } from '../effects/registry.js';
 import { IMAGE_PRESETS } from '../effects/presets.js';
 import { renderProceduralVideoFrame } from '../core/procedural-video.js';
